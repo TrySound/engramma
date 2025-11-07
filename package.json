@@ -29,6 +29,7 @@
     "@lucide/svelte": "^0.553.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@tsconfig/svelte": "^5.0.5",
+    "fractional-index": "^1.0.0",
     "nano-staged": "^0.8.0",
     "prettier": "^3.6.2",
     "prettier-plugin-svelte": "^3.4.0",
