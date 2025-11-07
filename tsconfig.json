@@ -1,0 +1,12 @@
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "types": ["./src/app.d.ts", "svelte", "vite/client"],
+    "target": "es2023",
+    "plugins": [
+      {
+        "name": "typescript-svelte-plugin"
+      }
+    ]
+  }
+}

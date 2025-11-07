@@ -1,0 +1,14 @@
+:root {
+  /* Geometric Humanist from https://modernfontstacks.com */
+  font-family:
+    Avenir, Montserrat, Corbel, "URW Gothic", source-sans-pro, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+}
+
+body {
+  margin: 0;
+}
