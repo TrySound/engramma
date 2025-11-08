@@ -17,6 +17,9 @@ importers:
       '@tsconfig/svelte':
         specifier: ^5.0.5
         version: 5.0.5
+      change-case:
+        specifier: ^5.4.4
+        version: 5.4.4
       fractional-indexing:
         specifier: ^3.2.0
         version: 3.2.0
@@ -427,6 +430,9 @@ packages:
   chai@6.2.0:
     resolution: {integrity: sha512-aUTnJc/JipRzJrNADXVvpVqi6CO0dn3nx4EVPxijri+fj3LUUDyZQOgVeW54Ob3Y1Xh9Iz8f+CgaCl8v0mn9bA==}
     engines: {node: '>=18'}
+
+  change-case@5.4.4:
+    resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
 
   chokidar@4.0.3:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
@@ -963,6 +969,8 @@ snapshots:
   axobject-query@4.1.0: {}
 
   chai@6.2.0: {}
+
+  change-case@5.4.4: {}
 
   chokidar@4.0.3:
     dependencies:

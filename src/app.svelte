@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { kebabCase } from "change-case";
   import { treeState } from "./state.svelte";
   import type { GroupMeta, TokenMeta } from "./state.svelte";
   import type { TreeNode } from "./store";
@@ -69,6 +70,49 @@
     }
     return null;
   }
+
+  function buildPath(nodeId: string): string[] {
+    const path: string[] = [];
+    let currentId: string | null = nodeId;
+
+    while (currentId) {
+      const nodes = treeState.values();
+      const node = nodes.find((n) => n.nodeId === currentId);
+      if (!node) break;
+
+      path.unshift(node.meta.name);
+      currentId = node.parentId ?? null;
+    }
+
+    return path;
+  }
+
+  function generateCssVariables(): string {
+    const nodes = treeState.values();
+    const tokens = nodes.filter((node) => node.meta.nodeType === "token");
+
+    if (tokens.length === 0) {
+      return ":root {\n  /* No tokens defined */\n}";
+    }
+
+    const cssVars = tokens
+      .map((node) => {
+        const tokenMeta = node.meta as TokenMeta;
+        const path = buildPath(node.nodeId);
+        const kebabPath = path.map((segment) => kebabCase(segment));
+        const varName = `--${kebabPath.join("-")}`;
+        const value = formatValue(tokenMeta);
+
+        if (value === null) return null;
+
+        return `  ${varName}: ${value};`;
+      })
+      .filter((line): line is string => line !== null);
+
+    return `:root {\n${cssVars.join("\n")}\n}`;
+  }
+
+  const cssOutput = $derived(generateCssVariables());
 </script>
 
 {#snippet treeItem(node: TreeNode<GroupMeta | TokenMeta>, depth: number)}
@@ -163,7 +207,7 @@
         <h2 class="panel-title">CSS Variables</h2>
       </div>
 
-      <textarea class="css-textarea"></textarea>
+      <textarea class="css-textarea" readonly value={cssOutput}></textarea>
     </main>
   </div>
 </div>
