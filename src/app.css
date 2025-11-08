@@ -4,11 +4,11 @@
     Avenir, Montserrat, Corbel, "URW Gothic", source-sans-pro, sans-serif;
 
   /* Color scheme - Figma-like Dark Mode */
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #252525;
-  --bg-tertiary: #2a2a2a;
-  --bg-hover: #323232;
-  --border-color: #3d3d3d;
+  --bg-primary: #2c2c2c;
+  --bg-secondary: #323232;
+  --bg-tertiary: #383838;
+  --bg-hover: #404040;
+  --border-color: #454545;
   --text-primary: #e6e6e6;
   --text-secondary: #999999;
   --accent: #18a0fb;
@@ -146,6 +146,122 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+}
+
+/* Tree structure */
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tree-node:hover {
+  background: var(--bg-hover);
+}
+
+.tree-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.tree-toggle:hover {
+  color: var(--text-primary);
+}
+
+.tree-chevron {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.tree-chevron.rotated {
+  transform: rotate(90deg);
+}
+
+.tree-folder-icon {
+  font-size: 14px;
+  margin-right: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.tree-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+/* Tree items (children) */
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 32px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tree-item:hover {
+  background: var(--bg-hover);
+}
+
+.tree-item.selected {
+  background: #4a5878;
+  color: white;
+}
+
+.tree-item.selected .tree-item-name {
+  color: white;
+}
+
+.tree-item.selected .tree-item-value {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.tree-item-indent {
+  position: absolute;
+  left: 0;
+  width: 0;
+}
+
+.token-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.tree-item-name {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.tree-item-value {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: "Monaco", "Courier New", monospace;
 }
 
 .token-group {
