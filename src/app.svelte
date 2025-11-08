@@ -25,6 +25,50 @@
   function getChildren(nodeId: string): TreeNode<GroupMeta | TokenMeta>[] {
     return treeState.getChildren(nodeId);
   }
+
+  function formatValue(meta: GroupMeta | TokenMeta): string | null {
+    if (meta.nodeType !== "token") return null;
+
+    switch (meta.type) {
+      case "color": {
+        const { colorSpace, components } = meta.value;
+        if (colorSpace === "srgb" && components.length === 3) {
+          const r = Math.round(components[0] * 255);
+          const g = Math.round(components[1] * 255);
+          const b = Math.round(components[2] * 255);
+          return `rgb(${r}, ${g}, ${b})`;
+        }
+        return `${colorSpace}(${components.join(", ")})`;
+      }
+      case "dimension":
+        return `${meta.value.value}${meta.value.unit}`;
+      case "duration":
+        return `${meta.value.value}${meta.value.unit}`;
+      case "number":
+        return String(meta.value);
+      case "fontFamily":
+        return Array.isArray(meta.value) ? meta.value[0] : meta.value;
+      case "fontWeight":
+        return String(meta.value);
+      case "cubicBezier":
+        return `cubic-bezier(${meta.value.join(", ")})`;
+      default:
+        return null;
+    }
+  }
+
+  function getColorPreview(meta: GroupMeta | TokenMeta): string | null {
+    if (meta.nodeType !== "token" || meta.type !== "color") return null;
+
+    const { colorSpace, components } = meta.value;
+    if (colorSpace === "srgb" && components.length === 3) {
+      const r = Math.round(components[0] * 255);
+      const g = Math.round(components[1] * 255);
+      const b = Math.round(components[2] * 255);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    return null;
+  }
 </script>
 
 {#snippet treeItem(node: TreeNode<GroupMeta | TokenMeta>, depth: number)}
@@ -32,6 +76,8 @@
   {@const hasChildren = children.length > 0}
   {@const isExpanded = expandedNodes.has(node.nodeId)}
   {@const isSelected = selectedNodeId === node.nodeId}
+  {@const valuePreview = formatValue(node.meta)}
+  {@const colorPreview = getColorPreview(node.meta)}
 
   <div class="tree-node" style="padding-left: {depth * 16}px;">
     {#if hasChildren}
@@ -53,6 +99,14 @@
     >
       {node.meta.name}
     </span>
+    {#if valuePreview}
+      <div class="tree-preview">
+        {#if colorPreview}
+          <div class="token-preview" style="background: {colorPreview};"></div>
+        {/if}
+        <span class="tree-preview-value">{valuePreview}</span>
+      </div>
+    {/if}
   </div>
 
   {#if isExpanded && hasChildren}

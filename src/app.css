@@ -226,6 +226,20 @@ body {
   color: white;
 }
 
+.tree-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+.tree-preview-value {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: "Monaco", "Courier New", monospace;
+}
+
 /* Tree items (children) */
 .tree-item {
   display: flex;
