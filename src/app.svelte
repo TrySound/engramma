@@ -234,6 +234,30 @@
       handleDelete();
     }
   };
+
+  const handleMove = (
+    itemIds: string[],
+    newParentId: string,
+    position: number,
+  ) => {
+    // get the children of the new parent to calculate the new index
+    const newParentChildren = treeState.getChildren(newParentId);
+    const prevIndex = newParentChildren[position - 1]?.index ?? null;
+    const nextIndex = newParentChildren[position]?.index ?? null;
+    treeState.transact((tx) => {
+      // move each item to the new parent
+      for (const itemId of itemIds) {
+        const node = treeState.getNode(itemId);
+        if (node) {
+          tx.set({
+            ...node,
+            parentId: newParentId,
+            index: generateKeyBetween(prevIndex, nextIndex),
+          });
+        }
+      }
+    });
+  };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -330,6 +354,9 @@
           {selectedItems}
           {defaultExpandedItems}
           renderItem={renderTreeItem}
+          canAcceptChildren={(nodeId) =>
+            treeState.getNode(nodeId)?.meta.nodeType === "token-group"}
+          onMove={handleMove}
         />
       </div>
     </aside>

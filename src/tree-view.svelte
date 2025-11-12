@@ -9,7 +9,21 @@
 
 <script lang="ts">
   import { ChevronDown } from "@lucide/svelte";
+  import type { Attachment } from "svelte/attachments";
   import { SvelteSet } from "svelte/reactivity";
+  import {
+    draggable,
+    dropTargetForElements,
+    monitorForElements,
+  } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+  import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
+  import { disableNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview";
+  import { preventUnhandled } from "@atlaskit/pragmatic-drag-and-drop/prevent-unhandled";
+  import {
+    attachInstruction,
+    extractInstruction,
+    type Instruction,
+  } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
 
   // based on https://www.w3.org/WAI/ARIA/apg/patterns/treeview/
 
@@ -21,6 +35,8 @@
     defaultExpandedItems,
     hoveredItemId = $bindable(),
     renderItem,
+    canAcceptChildren,
+    onMove,
   }: {
     id: string;
     label: string;
@@ -29,6 +45,9 @@
     defaultExpandedItems: string[];
     hoveredItemId?: string;
     renderItem?: (item: TreeItem) => any;
+    // drag and drop specific
+    canAcceptChildren?: (itemId: string) => boolean;
+    onMove?: (items: string[], parentId: string, position: number) => void;
   } = $props();
 
   // based on https://www.w3.org/WAI/ARIA/apg/patterns/treeview/
@@ -259,6 +278,141 @@
       }
     }
   };
+
+  type DragState = {
+    type: "idle" | "dragging" | "over";
+    items?: string[];
+    targetId?: string;
+    instruction?: Instruction | null;
+  };
+
+  let dragState = $state<DragState>({ type: "idle" });
+
+  let autoExpandTimeout: number;
+  const setupDragAndDrop: Attachment<HTMLElement> = (element) => {
+    const itemId = getItemId(element.closest(`[role=treeitem]`));
+    if (!itemId) {
+      return;
+    }
+    return combine(
+      draggable({
+        element,
+        getInitialData: () => ({
+          type: "tree-item",
+          items: selectedItems.has(itemId)
+            ? Array.from(selectedItems)
+            : [itemId],
+        }),
+        onGenerateDragPreview: ({ nativeSetDragImage }) => {
+          disableNativeDragPreview({ nativeSetDragImage });
+          preventUnhandled.start();
+        },
+        onDragStart: () => {
+          dragState = {
+            type: "dragging",
+            items: selectedItems.has(itemId)
+              ? Array.from(selectedItems)
+              : [itemId],
+          };
+        },
+        onDrop: () => {
+          dragState = { type: "idle" };
+        },
+      }),
+
+      dropTargetForElements({
+        element,
+        canDrop: ({ source }) => source.data.type === "tree-item",
+        getData: ({ input, source, element }) => {
+          const sourceItems = source.data.items as string[];
+          const data = { itemId };
+          return attachInstruction(data, {
+            input,
+            element,
+            operations: {
+              combine:
+                sourceItems.includes(itemId) || !canAcceptChildren?.(itemId)
+                  ? "not-available"
+                  : "available",
+              "reorder-before": "available",
+              "reorder-after": "available",
+            },
+          });
+        },
+        onDragEnter: () => {
+          window.clearTimeout(autoExpandTimeout);
+          autoExpandTimeout = window.setTimeout(
+            () => expandedItems.add(itemId),
+            1000,
+          );
+        },
+        onDrag: ({ self, source }) => {
+          preventUnhandled.stop();
+          const instruction = extractInstruction(self.data);
+          const sourceItems = source.data.items as string[];
+          dragState = {
+            type: "over",
+            items: sourceItems,
+            targetId: itemId,
+            instruction,
+          };
+        },
+        onDragLeave: ({ source }) => {
+          const sourceItems = source.data.items as string[];
+          dragState = { type: "dragging", items: sourceItems };
+        },
+        onDrop: () => {
+          dragState = { type: "idle" };
+        },
+      }),
+    );
+  };
+
+  const setupTreeMonitor: Attachment<HTMLElement> = () => {
+    return monitorForElements({
+      canMonitor: ({ source }) => source.data.type === "tree-item",
+      onDrop: ({ source, location }) => {
+        const target = location.current.dropTargets[0];
+        if (!target) {
+          return;
+        }
+
+        const sourceItems = source.data.items as string[];
+        const targetId = target.data.itemId as string;
+        const targetElement = treeElement?.querySelector(
+          `#${getItemElementId(targetId)}`,
+        );
+        const instruction = extractInstruction(target.data);
+        if (instruction?.operation === "reorder-before") {
+          const targetParentId = getItemId(
+            targetElement?.parentElement?.closest("[role=treeitem]"),
+          );
+          const position = Number(targetElement?.getAttribute("data-position"));
+          if (targetParentId) {
+            onMove?.(sourceItems, targetParentId, position);
+          }
+        }
+        if (instruction?.operation === "reorder-after") {
+          if (expandedItems.has(targetId)) {
+            onMove?.(sourceItems, targetId, 0);
+          } else {
+            const targetParentId = getItemId(
+              targetElement?.parentElement?.closest("[role=treeitem]"),
+            );
+            const position = Number(
+              targetElement?.getAttribute("data-position"),
+            );
+            if (targetParentId) {
+              onMove?.(sourceItems, targetParentId, position + 1);
+            }
+          }
+        }
+        if (instruction?.operation === "combine") {
+          onMove?.(sourceItems, targetId, 0);
+        }
+      },
+    });
+  };
 </script>
 
 {#snippet item(itemData: TreeItem, level: number, position: number)}
@@ -270,12 +424,14 @@
     style:--tree-view-level={level}
     aria-selected={selectedItems.has(id)}
     aria-expanded={children.length > 0 ? expandedItems.has(id) : undefined}
+    data-dragging={dragState.items?.includes(id) && dragState.type !== "idle"}
     data-hovered={hoveredItemId === id}
     data-position={position}
   >
     <div
       class="node"
       role="presentation"
+      {@attach setupDragAndDrop}
       onmouseenter={() => (hoveredItemId = id)}
       onmouseleave={() => (hoveredItemId = undefined)}
     >
@@ -295,6 +451,14 @@
           <div class="name">{name}</div>
         {/if}
       </div>
+      {#if dragState.targetId === id && dragState.type === "over" && dragState.instruction}
+        <div
+          class="drop-indicator"
+          data-operation={dragState.instruction.operation}
+          data-expanded={!dragState.items?.includes(dragState.targetId) &&
+            expandedItems.has(dragState.targetId)}
+        ></div>
+      {/if}
     </div>
     <div role="group">
       {#each children as child, position (child.id)}
@@ -314,7 +478,9 @@
   aria-activedescendant={activeItemId
     ? getItemElementId(activeItemId)
     : undefined}
+  data-dragging={dragState.type !== "idle"}
   onkeydown={handleKeyDown}
+  {@attach setupTreeMonitor}
 >
   {#each data as root, position (root.id)}
     {@render item(root, 1, position)}
@@ -339,6 +505,7 @@
     --tree-view-toggle-visibility: hidden;
     --tree-view-bg: transparent;
     --tree-view-bg-hover: var(--bg-hover);
+    --tree-view-node-opacity: 1;
 
     &[aria-expanded="true"] {
       --tree-view-toggle-visibility: visible;
@@ -350,22 +517,26 @@
       --tree-view-toggle-rotate: -90deg;
     }
 
-    [role="tree"] &[data-hovered="true"] {
+    [role="tree"]:not([data-dragging="true"]) &[data-hovered="true"] {
       --tree-view-bg: var(--bg-hover);
       --tree-view-bg-hover: var(--bg-hover);
       --tree-view-item-hover-visibility: visible;
     }
 
-    [role="tree"] &[aria-selected="true"] {
+    [role="tree"]:not([data-dragging="true"]) &[aria-selected="true"] {
       --tree-view-bg: var(--accent);
       --tree-view-bg-hover: var(--accent-hover);
+    }
+
+    &[data-dragging="true"] {
+      --tree-view-node-opacity: 0.5;
     }
   }
 
   [role="group"] {
     display: none;
 
-    [role="treeitem"][aria-expanded="true"] > & {
+    [role="treeitem"][aria-expanded="true"]:not([data-dragging="true"]) > & {
       display: block;
     }
   }
@@ -422,13 +593,62 @@
 
   .item {
     isolation: isolate;
-    flex: 1;
+    opacity: var(--tree-view-node-opacity);
     pointer-events: none;
   }
 
   .name {
     font-size: 14px;
-    pointer-events: none;
     padding: 4px 0;
+  }
+
+  .drop-indicator {
+    position: absolute;
+    --drop-indicator-level: calc(var(--tree-view-level) - 1);
+    left: calc(8px + var(--drop-indicator-level) * 12px);
+    right: 8px;
+    height: 2px;
+    background-color: var(--accent);
+    pointer-events: none;
+    /* to pop indicator on top of next tree item */
+    z-index: 1;
+
+    &[data-operation="reorder-before"] {
+      top: -1px;
+    }
+
+    &[data-operation="reorder-after"] {
+      bottom: -1px;
+      /* increase level when put after expanded item (as a child) */
+      &[data-expanded="true"] {
+        --drop-indicator-level: var(--tree-view-level);
+      }
+    }
+
+    &[data-operation="combine"] {
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: auto;
+      background-color: transparent;
+      border: 2px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: -4px;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent);
+    }
+
+    &[data-operation="combine"]::before {
+      display: none;
+    }
   }
 </style>
