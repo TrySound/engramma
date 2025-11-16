@@ -29,3 +29,36 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
 }
+
+.field {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-primary);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+  }
+}
+
+.field[type="number"] {
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+textarea.field {
+  field-sizing: content;
+  resize: none;
+  max-height: 10lh;
+}

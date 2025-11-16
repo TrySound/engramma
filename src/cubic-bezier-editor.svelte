@@ -43,7 +43,7 @@
 
 <div class="cubic-bezier-editor">
   <select
-    class="form-select"
+    class="field"
     value={selectedPreset}
     onchange={(event) => {
       const preset = event.currentTarget.value;
@@ -66,7 +66,7 @@
 
   {#if selectedPreset === "custom"}
     <input
-      class="form-input"
+      class="field"
       type="text"
       placeholder="e.g., 0.25, 0.1, 0.25, 1"
       value={customInput}
@@ -93,41 +93,5 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-
-  select {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 14px;
-    transition: all 0.2s ease;
-  }
-
-  select:focus {
-    outline: none;
-    border-color: var(--accent);
-    background: var(--bg-primary);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
-  }
-
-  input {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 14px;
-    transition: all 0.2s ease;
-  }
-
-  input:focus {
-    outline: none;
-    border-color: var(--accent);
-    background: var(--bg-primary);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
   }
 </style>

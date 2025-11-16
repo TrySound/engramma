@@ -109,7 +109,7 @@
                 <div class="position-input-group">
                   <input
                     id="position-{index}"
-                    class="form-input position-input"
+                    class="position-input"
                     type="range"
                     min="0"
                     max="1"
@@ -123,7 +123,7 @@
                     }}
                   />
                   <input
-                    class="form-input position-number"
+                    class="field position-number"
                     type="number"
                     min="0"
                     max="1"
@@ -277,21 +277,6 @@
 
   .position-number {
     width: 60px;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 14px;
-    transition: all 0.2s ease;
-  }
-
-  .position-number:focus {
-    outline: none;
-    border-color: var(--accent);
-    background: var(--bg-primary);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
   }
 
   .position-percent {

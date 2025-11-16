@@ -110,7 +110,7 @@
 )}
   <div class="dimension-input-group">
     <input
-      class="form-input"
+      class="field dimension-value"
       type="number"
       value={dimension.value}
       step="0.1"
@@ -123,7 +123,7 @@
       }}
     />
     <select
-      class="form-select dimension-unit-select"
+      class="field dimension-unit-select"
       value={dimension.unit}
       onchange={(e) => {
         onChange({
@@ -143,7 +143,7 @@
   onChange: (value: FontFamilyValue) => void,
 )}
   <textarea
-    class="form-textarea"
+    class="field"
     placeholder="e.g., Inter, -apple-system, BlinkMacSystemFont, sans-serif"
     value={typeof fontFamily === "string" ? fontFamily : fontFamily.join(", ")}
     oninput={(e) => {
@@ -159,7 +159,7 @@
   onChange: (value: number) => void,
 )}
   <select
-    class="form-select"
+    class="field"
     value={String(normalizeFontWeight(fontWeight))}
     onchange={(e) => {
       const value = Number.parseInt(e.currentTarget.value, 10);
@@ -185,7 +185,7 @@
 )}
   {#if typeof strokeStyle === "string"}
     <select
-      class="form-select"
+      class="field"
       value={strokeStyle}
       onchange={(e) => {
         const value = e.currentTarget.value;
@@ -211,7 +211,7 @@
     </select>
   {:else if typeof strokeStyle === "object" && "dashArray" in strokeStyle}
     <select
-      class="form-select"
+      class="field"
       value="custom"
       onchange={(e) => {
         const value = e.currentTarget.value;
@@ -235,7 +235,7 @@
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <label>Line Cap</label>
       <select
-        class="form-select"
+        class="field"
         value={strokeStyle.lineCap}
         onchange={(e) => {
           onChange({
@@ -325,7 +325,7 @@
       <label for="name-input">Name</label>
       <input
         id="name-input"
-        class="form-input"
+        class="field"
         type="text"
         value={meta?.name}
         oninput={(e) => handleNameChange(e.currentTarget.value)}
@@ -336,7 +336,7 @@
       <label for="description-input">Description</label>
       <textarea
         id="description-input"
-        class="form-textarea"
+        class="field"
         value={meta?.description ?? ""}
         oninput={(e) => handleDescriptionChange(e.currentTarget.value)}
       ></textarea>
@@ -354,7 +354,7 @@
       </label>
       {#if meta?.deprecated !== undefined}
         <input
-          class="form-input"
+          class="field"
           type="text"
           placeholder="Reason for deprecation"
           bind:value={
@@ -403,7 +403,7 @@
         <div class="dimension-input-group">
           <input
             id="dimension-value-input"
-            class="form-input"
+            class="field dimension-value"
             type="number"
             value={meta.value.value}
             oninput={(e) => {
@@ -417,7 +417,7 @@
           />
           <select
             id="dimension-unit-input"
-            class="form-select dimension-unit-select"
+            class="field dimension-unit-select"
             value={meta.value.unit}
             onchange={(e) => {
               updateMeta({
@@ -442,7 +442,7 @@
         <div class="duration-input-group">
           <input
             id="duration-value-input"
-            class="form-input"
+            class="field duration-value"
             type="number"
             value={meta.value.value}
             oninput={(e) => {
@@ -456,7 +456,7 @@
           />
           <select
             id="duration-unit-input"
-            class="form-select duration-unit-select"
+            class="field duration-unit-select"
             value={meta.value.unit}
             onchange={(e) => {
               updateMeta({
@@ -479,7 +479,7 @@
         <label for="number-input">Value</label>
         <input
           id="number-input"
-          class="form-input"
+          class="field"
           type="number"
           value={meta.value}
           oninput={(e) => {
@@ -532,7 +532,7 @@
         <label>Duration</label>
         <div class="dimension-input-group">
           <input
-            class="form-input"
+            class="field"
             type="number"
             value={(meta.value as TransitionValue).duration.value}
             step="1"
@@ -553,7 +553,7 @@
             }}
           />
           <select
-            class="form-select duration-unit-select"
+            class="field duration-unit-select"
             value={(meta.value as TransitionValue).duration.unit}
             onchange={(e) => {
               updateMeta({
@@ -578,7 +578,7 @@
         <label>Delay</label>
         <div class="dimension-input-group">
           <input
-            class="form-input"
+            class="field"
             type="number"
             value={(meta.value as TransitionValue).delay.value}
             step="1"
@@ -599,7 +599,7 @@
             }}
           />
           <select
-            class="form-select duration-unit-select"
+            class="field duration-unit-select"
             value={(meta.value as TransitionValue).delay.unit}
             onchange={(e) => {
               updateMeta({
@@ -680,7 +680,7 @@
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>Line Height</label>
         <input
-          class="form-input"
+          class="field"
           type="number"
           value={meta.value.lineHeight}
           oninput={(e) => {
@@ -1021,33 +1021,7 @@
     letter-spacing: 0.5px;
   }
 
-  .form-input,
-  .form-textarea,
-  .form-select {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 14px;
-    transition: all 0.2s ease;
-  }
-
-  .form-input:focus,
-  .form-textarea:focus,
-  .form-select:focus {
-    outline: none;
-    border-color: var(--accent);
-    background: var(--bg-primary);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
-  }
-
-  .form-textarea {
-    field-sizing: content;
-    resize: none;
-    max-height: 10lh;
-  }
+  /* Form input, select, textarea atoms are defined in app.css */
 
   .form-value {
     padding: 8px 12px;
@@ -1076,7 +1050,7 @@
     gap: 8px;
   }
 
-  .dimension-input-group .form-input {
+  .dimension-value {
     flex: 1;
   }
 
@@ -1090,7 +1064,7 @@
     gap: 8px;
   }
 
-  .duration-input-group .form-input {
+  .duration-value {
     flex: 1;
   }
 
