@@ -85,7 +85,7 @@
             <div class="gradient-stop-row">
               <div class="form-group">
                 <!-- svelte-ignore a11y_label_has_associated_control -->
-                <label>Color</label>
+                <label class="text-label">Color</label>
                 <div class="color-picker-wrapper">
                   <color-input
                     value={serializeColor(stop.color)}
@@ -105,7 +105,8 @@
               </div>
 
               <div class="form-group">
-                <label for="position-{index}">Position</label>
+                <label class="text-label" for="position-{index}">Position</label
+                >
                 <div class="position-input-group">
                   <input
                     id="position-{index}"
@@ -217,14 +218,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-
-  .form-group label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
   }
 
   .color-picker-wrapper {
