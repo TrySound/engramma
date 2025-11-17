@@ -13,11 +13,11 @@
   import TreeView, { type TreeItem } from "./tree-view.svelte";
   import Editor from "./editor.svelte";
   import AddToken from "./add-token.svelte";
+  import Styleguide from "./styleguide.svelte";
   import type { TreeNode } from "./store";
   import { treeState, type TreeNodeMeta } from "./state.svelte";
   import { serializeDesignTokens } from "./tokens";
   import { generateCssVariables } from "./css-variables";
-  import { generateStyleguide } from "./styleguide";
   import { serializeColor } from "./color";
 
   onMount(() => {
@@ -98,7 +98,6 @@
   const jsonOutput = $derived(
     stringify(serializeDesignTokens(allSelectedNodes)),
   );
-  const styleguideOutput = $derived(generateStyleguide(allSelectedNodes));
 
   const handleDelete = () => {
     if (selectedItems.size === 0) {
@@ -329,12 +328,9 @@
           </button>
         </div>
         {#if outputMode === "styleguide"}
-          <iframe
-            id="styleguide-tabpanel"
-            title="Design Tokens Styleguide"
-            class="styleguide-iframe"
-            srcdoc={styleguideOutput}
-          ></iframe>
+          <div id="styleguide-tabpanel" class="styleguide-panel">
+            <Styleguide {selectedItems} />
+          </div>
         {/if}
         {#if outputMode === "css"}
           <textarea
@@ -492,11 +488,10 @@
     opacity: 0.6;
   }
 
-  /* Styleguide iframe */
-  .styleguide-iframe {
+  /* Styleguide panel */
+  .styleguide-panel {
     flex: 1;
-    border: none;
-    background: white;
+    overflow: hidden;
   }
 
   .tablist-header {

@@ -17,23 +17,23 @@ import type {
 
 // https://www.designtokens.org/tr/2025.10/color
 
-const toDimensionValue = (value: DimensionValue) => {
+export const toDimensionValue = (value: DimensionValue) => {
   return `${value.value}${value.unit}`;
 };
 
-const toDurationValue = (value: DurationValue) => {
+export const toDurationValue = (value: DurationValue) => {
   return `${value.value}${value.unit}`;
 };
 
-const toCubicBezierValue = (value: CubicBezierValue) => {
+export const toCubicBezierValue = (value: CubicBezierValue) => {
   return `cubic-bezier(${value.join(", ")})`;
 };
 
-const toFontFamily = (value: FontFamilyValue) => {
+export const toFontFamily = (value: FontFamilyValue) => {
   return Array.isArray(value) ? value.join(", ") : value;
 };
 
-const toShadow = (value: ShadowValue) => {
+export const toShadow = (value: ShadowValue) => {
   const shadows = Array.isArray(value) ? value : [value];
   const shadowStrings = shadows.map((shadow) => {
     const color = serializeColor(shadow.color);
@@ -47,7 +47,7 @@ const toShadow = (value: ShadowValue) => {
   return shadowStrings.join(", ");
 };
 
-const toGradient = (value: GradientValue) => {
+export const toGradient = (value: GradientValue) => {
   const stops = value.map(
     (stop) => `${serializeColor(stop.color)} ${stop.position * 100}%`,
   );
