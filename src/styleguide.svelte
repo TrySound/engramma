@@ -12,6 +12,8 @@
     toGradient,
     toShadow,
   } from "./css-variables";
+  import { noCase } from "change-case";
+  import { titleCase } from "title-case";
 
   const { selectedItems }: { selectedItems: Set<string> } = $props();
 
@@ -181,7 +183,7 @@
   {#if token.meta.nodeType === "token"}
     <div class="token-card">
       <div class="token-name">{token.meta.name}</div>
-      <div class="token-type">{token.meta.type}</div>
+      <div class="token-type">{titleCase(noCase(token.meta.type))}</div>
 
       {#if token.meta.type === "color"}
         {@const color = serializeColor(token.meta.value)}
@@ -281,11 +283,9 @@
       {#if token.meta.type === "strokeStyle"}
         {@render strokeStylePreview(token.meta.value)}
       {/if}
-
       {#if token.meta.description}
         <div class="token-description">{token.meta.description}</div>
       {/if}
-
       {#if token.meta.deprecated}
         {@const reason =
           typeof token.meta.deprecated === "string"
