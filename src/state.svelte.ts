@@ -1,6 +1,8 @@
 import { createSubscriber } from "svelte/reactivity";
 import { TreeStore, type Transaction, type TreeNode } from "./store";
 import type { Value } from "./schema";
+import { serializeDesignTokens } from "./tokens";
+import { setDataInUrl } from "./url-data";
 
 export type GroupMeta = {
   nodeType: "token-group";
@@ -24,9 +26,26 @@ export type TreeNodeMeta = GroupMeta | TokenMeta;
 export class TreeState<Meta> {
   #store = new TreeStore<Meta>();
   #subscribe = createSubscriber((update) => this.#store.subscribe(update));
+  #syncToUrl: boolean = false;
 
   transact(callback: (tx: Transaction<Meta>) => void): void {
     this.#store.transact(callback);
+    // Sync to URL after transaction completes
+    if (this.#syncToUrl) {
+      this.#updateUrl();
+    }
+  }
+
+  enableUrlSync(): void {
+    this.#syncToUrl = true;
+  }
+
+  #updateUrl(): void {
+    const allNodes = this.#store.nodes() as Map<string, TreeNode<TreeNodeMeta>>;
+    const serialized = serializeDesignTokens(allNodes);
+    setDataInUrl(serialized).catch((error) => {
+      console.error("Failed to sync design tokens to URL:", error);
+    });
   }
 
   values(): TreeNode<Meta>[] {
