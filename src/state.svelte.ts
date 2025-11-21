@@ -1,6 +1,6 @@
 import { createSubscriber } from "svelte/reactivity";
 import { TreeStore, type Transaction, type TreeNode } from "./store";
-import type { Value } from "./schema";
+import { type Value, ValueSchema } from "./schema";
 import { serializeDesignTokens } from "./tokens";
 import { setDataInUrl } from "./url-data";
 
@@ -17,12 +17,63 @@ export type TokenMeta = {
   nodeType: "token";
   name: string;
   type?: Value["type"];
-  value?: unknown;
+  value?: Value["value"];
   extends?: string;
   description?: string;
   deprecated?: boolean | string;
   extensions?: Record<string, unknown>;
 };
+
+/**
+ * Helper function to find the type of a token
+ * Searches through extends chain or parent group hierarchy
+ */
+function findTokenType(
+  token: TokenMeta,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+  nodeId?: string,
+): Value["type"] | undefined {
+  // If token has explicit type, use it
+  if (token.type) {
+    return token.type;
+  }
+
+  // If token has extends, resolve the type from the extended token
+  if (token.extends) {
+    const extendsRef = token.extends;
+    const segments = extendsRef.replace(/[{}]/g, "").split(".").filter(Boolean);
+    if (segments.length === 0) {
+      return undefined;
+    }
+    const nodesList = Array.from(nodes.values());
+    let currentNodeId: string | undefined;
+    for (const segment of segments) {
+      const nextNode = nodesList.find(
+        (n) => n.parentId === currentNodeId && n.meta.name === segment,
+      );
+      currentNodeId = nextNode?.nodeId;
+    }
+    const extendedNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
+    if (extendedNode?.meta.nodeType === "token") {
+      return findTokenType(extendedNode.meta, nodes, currentNodeId);
+    }
+  }
+
+  // If token is a child of a group, check parent group's type
+  if (nodeId) {
+    let currentParentId: string | undefined | null =
+      nodes.get(nodeId)?.parentId;
+    while (currentParentId !== undefined && currentParentId !== null) {
+      const parentNode = nodes.get(currentParentId);
+      if (parentNode?.meta.nodeType === "token-group" && parentNode.meta.type) {
+        return parentNode.meta.type;
+      }
+      currentParentId = parentNode?.parentId;
+    }
+  }
+
+  return undefined;
+}
 
 /**
  * "extends" resolution algorithm for aliases
@@ -34,15 +85,20 @@ export type TokenMeta = {
  * Return token value: Extract and return the $value content
  * Check for cycles: Maintain stack of resolving references
  */
-export function resolveTokenValue(
+export const resolveTokenValue = (
   token: TokenMeta,
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
   resolvingStack: Set<string> = new Set(),
-): Value {
+  nodeId?: string,
+): Value => {
   // stop early with existing value
   if (!token.extends) {
+    const resolvedType = token.type ?? findTokenType(token, nodes, nodeId);
+    if (!resolvedType) {
+      throw new Error(`Token "${token.name}" has no determinable type`);
+    }
     if (token.value) {
-      return token as Value;
+      return ValueSchema.parse({ type: resolvedType, value: token.value });
     }
     throw new Error(`Token "${token.name}" has no value to resolve`);
   }
@@ -78,8 +134,14 @@ export function resolveTokenValue(
   // resolve token further if has extends too
   const newStack = new Set(resolvingStack);
   newStack.add(extendsRef);
-  return resolveTokenValue(tokenNode.meta, nodes, newStack);
-}
+  const resolved = resolveTokenValue(
+    tokenNode.meta,
+    nodes,
+    newStack,
+    currentNodeId,
+  );
+  return resolved;
+};
 
 export type TreeNodeMeta = GroupMeta | TokenMeta;
 

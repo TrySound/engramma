@@ -1066,6 +1066,64 @@ describe("serializeDesignTokens", () => {
     );
   });
 
+  test("allows token with $extends but no $type", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
+        },
+      },
+      semantic: {
+        brand: {
+          $extends: "{colors}",
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    const brandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
+    );
+    expect(brandToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "brand",
+        extends: "{colors}",
+      }),
+    );
+    // Type should not be present when not explicitly set
+    expect(brandToken?.meta?.type).toBeUndefined();
+  });
+
+  test("allows token with $value reference but no $type", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
+        },
+      },
+      semantic: {
+        brand: {
+          $value: "{colors.primary}",
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    const brandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
+    );
+    expect(brandToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "brand",
+        extends: "{colors.primary}",
+      }),
+    );
+    // Type should not be present when not explicitly set
+    expect(brandToken?.meta?.type).toBeUndefined();
+  });
+
   test("serializes token with $value containing reference", () => {
     const input = {
       colors: {

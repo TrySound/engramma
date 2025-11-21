@@ -142,7 +142,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
         : undefined;
 
     if (extendsValue) {
-      // Token is an alias via $extends, no need for type or value
+      // Token is an alias via $extends, type is optional and will be resolved
       addNode(parentNodeId, {
         nodeType: "token",
         name,
@@ -155,10 +155,6 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       return;
     }
 
-    if (!type) {
-      recordError(serializedPath, "Token type cannot be determined");
-      return;
-    }
     const value = (obj as any).$value;
 
     // Check if value is a token reference (curly brace syntax in $value)
@@ -169,9 +165,14 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
         description,
         deprecated,
         extensions,
-        type: type as Value["type"],
+        ...(type && { type: type as Value["type"] }),
         extends: value,
       });
+      return;
+    }
+
+    if (!type) {
+      recordError(serializedPath, "Token type cannot be determined");
       return;
     }
 

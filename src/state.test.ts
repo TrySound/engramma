@@ -179,8 +179,6 @@ describe("resolveTokenValue", () => {
     };
     const nodes = createNodesMap([]);
     expect(resolveTokenValue(token, nodes)).toEqual({
-      nodeType: "token",
-      name: "primary",
       type: "color",
       value: { colorSpace: "srgb", components: [1, 0, 0] },
     });
@@ -223,13 +221,10 @@ describe("resolveTokenValue", () => {
       meta: { nodeType: "token-group", name: "colors", type: "color" },
     };
     const nodes = createNodesMap([colorToken, colorsGroup]);
-    expect(resolveTokenValue(aliasToken, nodes)).toEqual(
-      expect.objectContaining({
-        name: "primary",
-        type: "color",
-        value: { colorSpace: "srgb", components: [0, 0, 1] },
-      }),
-    );
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "color",
+      value: { colorSpace: "srgb", components: [0, 0, 1] },
+    });
   });
 
   test("should resolve nested token references", () => {
@@ -263,13 +258,10 @@ describe("resolveTokenValue", () => {
       extends: "{colors.secondary.accent}",
     };
     const nodes = createNodesMap([colorToken, nestedGroup, colorsGroup]);
-    expect(resolveTokenValue(aliasToken, nodes)).toEqual(
-      expect.objectContaining({
-        name: "accent",
-        type: "color",
-        value: { colorSpace: "srgb", components: [1, 1, 0] },
-      }),
-    );
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "color",
+      value: { colorSpace: "srgb", components: [1, 1, 0] },
+    });
   });
 
   test("should handle curly braces in reference correctly", () => {
@@ -297,12 +289,10 @@ describe("resolveTokenValue", () => {
       extends: "{base.size}",
     };
     const nodes = createNodesMap([baseToken, baseGroup]);
-    expect(resolveTokenValue(aliasToken, nodes)).toEqual(
-      expect.objectContaining({
-        name: "size",
-        value: { value: 16, unit: "px" },
-      }),
-    );
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "dimension",
+      value: { value: 16, unit: "px" },
+    });
   });
 
   test("should resolve chained aliases", () => {
@@ -352,13 +342,10 @@ describe("resolveTokenValue", () => {
       intermediateToken,
       semanticGroup,
     ]);
-    expect(resolveTokenValue(aliasToken, nodes)).toEqual(
-      expect.objectContaining({
-        name: "original",
-        type: "color",
-        value: { colorSpace: "srgb", components: [1, 0, 0] },
-      }),
-    );
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "color",
+      value: { colorSpace: "srgb", components: [1, 0, 0] },
+    });
   });
 
   test("should detect circular references between two tokens", () => {
@@ -524,53 +511,16 @@ describe("resolveTokenValue", () => {
       level1Group,
       rootGroup,
     ]);
-    expect(resolveTokenValue(aliasToken, nodes)).toEqual(
-      expect.objectContaining({
-        name: "final",
-        value: 42,
-      }),
-    );
-  });
-
-  test("should preserve token metadata when resolving", () => {
-    const sourceToken: TreeNode<TokenMeta> = {
-      nodeId: "source-node",
-      parentId: "colors-group",
-      index: "a0",
-      meta: {
-        nodeType: "token",
-        name: "primary",
-        type: "color",
-        value: { colorSpace: "srgb", components: [0, 0, 1] },
-        description: "Primary color",
-        deprecated: "Use semantic.primary instead",
-      },
-    };
-    const colorsGroup: TreeNode<TreeNodeMeta> = {
-      nodeId: "colors-group",
-      parentId: undefined,
-      index: "a0",
-      meta: { nodeType: "token-group", name: "colors" },
-    };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "brand",
-      type: "color",
-      extends: "{colors.primary}",
-    };
-    const nodes = createNodesMap([sourceToken, colorsGroup]);
-    expect(resolveTokenValue(aliasToken, nodes)).toEqual(
-      expect.objectContaining({
-        description: "Primary color",
-        deprecated: "Use semantic.primary instead",
-      }),
-    );
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "number",
+      value: 42,
+    });
   });
 
   test("should resolve various token types", () => {
     const testCases: Array<{
       name: string;
-      value: unknown;
+      value: Value["value"];
       type: Value["type"];
     }> = [
       {
@@ -621,5 +571,132 @@ describe("resolveTokenValue", () => {
         }),
       );
     }
+  });
+
+  test("should resolve type from parent group when token has no explicit type", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0, 0, 1] },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors", type: "color" },
+    };
+    const aliasToken: TokenMeta = {
+      nodeType: "token",
+      name: "brand",
+      // No type specified
+      extends: "{colors.primary}",
+    };
+    const nodes = createNodesMap([colorToken, colorsGroup]);
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "color",
+      value: { colorSpace: "srgb", components: [0, 0, 1] },
+    });
+  });
+
+  test("should resolve type from extended token when no parent group type", () => {
+    const baseToken: TreeNode<TokenMeta> = {
+      nodeId: "base-node",
+      parentId: "base-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "size",
+        type: "dimension",
+        value: { value: 16, unit: "px" },
+      },
+    };
+    const baseGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "base-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "base" },
+    };
+    const aliasToken: TokenMeta = {
+      nodeType: "token",
+      name: "spacing",
+      // No type specified
+      extends: "{base.size}",
+    };
+    const nodes = createNodesMap([baseToken, baseGroup]);
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "dimension",
+      value: { value: 16, unit: "px" },
+    });
+  });
+
+  test("should throw error when token has no value and no determinable type", () => {
+    const token: TokenMeta = {
+      nodeType: "token",
+      name: "broken",
+      // No type, no value
+    };
+    const nodes = createNodesMap([]);
+    expect(() => resolveTokenValue(token, nodes)).toThrow(
+      'Token "broken" has no determinable type',
+    );
+  });
+
+  test("should resolve type through chained aliases", () => {
+    const originalToken: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: "base-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "original",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const baseGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "base-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "base" },
+    };
+    const intermediateToken: TreeNode<TokenMeta> = {
+      nodeId: "intermediate-node",
+      parentId: "semantic-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        // No type specified
+        extends: "{base.original}",
+      },
+    };
+    const semanticGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "semantic-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "semantic" },
+    };
+    const aliasToken: TokenMeta = {
+      nodeType: "token",
+      name: "brand",
+      // No type specified
+      extends: "{semantic.primary}",
+    };
+    const nodes = createNodesMap([
+      originalToken,
+      baseGroup,
+      intermediateToken,
+      semanticGroup,
+    ]);
+    expect(resolveTokenValue(aliasToken, nodes)).toEqual({
+      type: "color",
+      value: { colorSpace: "srgb", components: [1, 0, 0] },
+    });
   });
 });
