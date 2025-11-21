@@ -114,6 +114,70 @@ export const resolveTokenValue = (
   return resolved;
 };
 
+/**
+ * Check if setting an alias would create a circular dependency
+ * Returns true if the alias would be safe (no circular dependency)
+ * Returns false if the alias would create a circular dependency
+ */
+export const isAliasCircular = (
+  currentTokenId: string,
+  targetTokenId: string,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+): boolean => {
+  const targetNode = nodes.get(targetTokenId);
+  if (!targetNode || targetNode.meta.nodeType !== "token") {
+    return false;
+  }
+
+  const targetTokenMeta = targetNode.meta;
+
+  // If target doesn't have an extends, it's safe
+  if (!targetTokenMeta.extends) {
+    return false;
+  }
+
+  // Build the path of tokens that the target extends through
+  const visited = new Set<string>();
+  let currentRef: string | undefined = targetTokenMeta.extends;
+
+  while (currentRef) {
+    // Prevent infinite loops in our detection logic
+    if (visited.has(currentRef)) {
+      return false;
+    }
+    visited.add(currentRef);
+
+    // Extract token path from "group.token" format
+    const segments = currentRef.replace(/[{}]/g, "").split(".").filter(Boolean);
+    const nodesList = Array.from(nodes.values());
+    let currentNodeId: string | undefined;
+
+    // Navigate through segments to find the token
+    for (const segment of segments) {
+      const nextNode = nodesList.find(
+        (n) => n.parentId === currentNodeId && n.meta.name === segment,
+      );
+      currentNodeId = nextNode?.nodeId;
+    }
+
+    // Check if we found the current token we're trying to set as alias
+    if (currentNodeId === currentTokenId) {
+      return true; // Circular dependency detected
+    }
+
+    // Get the next extends reference if it exists
+    const nextNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
+    if (nextNode?.meta.nodeType === "token" && nextNode.meta.extends) {
+      currentRef = nextNode.meta.extends;
+    } else {
+      // Reached end of extends chain
+      currentRef = undefined;
+    }
+  }
+
+  return false; // No circular dependency
+};
+
 export type TreeNodeMeta = GroupMeta | TokenMeta;
 
 export class TreeState<Meta> {

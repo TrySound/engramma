@@ -4,6 +4,7 @@
   import {
     treeState,
     resolveTokenValue,
+    isAliasCircular,
     type TreeNodeMeta,
   } from "./state.svelte";
   import { parseColor, serializeColor } from "./color";
@@ -116,7 +117,11 @@
       .filter((item) => {
         if (item.nodeId !== node.nodeId && item.meta.nodeType === "token") {
           const otherTokenType = resolveTokenValue(item, nodes).type;
-          return otherTokenType === currentTokenType;
+          // Filter by type compatibility and check for circular dependencies
+          return (
+            otherTokenType === currentTokenType &&
+            !isAliasCircular(node.nodeId, item.nodeId, nodes)
+          );
         }
         return false;
       })

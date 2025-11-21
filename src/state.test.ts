@@ -2,6 +2,7 @@ import { test, expect, describe } from "vitest";
 import {
   TreeState,
   resolveTokenValue,
+  isAliasCircular,
   type TokenMeta,
   type TreeNodeMeta,
 } from "./state.svelte";
@@ -795,5 +796,337 @@ describe("resolveTokenValue", () => {
       type: "number",
       value: 0,
     });
+  });
+});
+
+describe("isAliasCircular", () => {
+  const createNodesMap = (
+    nodes: TreeNode<TreeNodeMeta>[],
+  ): Map<string, TreeNode<TreeNodeMeta>> => {
+    const map = new Map<string, TreeNode<TreeNodeMeta>>();
+    for (const node of nodes) {
+      map.set(node.nodeId, node);
+    }
+    return map;
+  };
+
+  test("should return false when target has no extends", () => {
+    const sourceToken: TreeNode<TokenMeta> = {
+      nodeId: "source-node",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "source",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const targetToken: TreeNode<TokenMeta> = {
+      nodeId: "target-node",
+      parentId: "group2",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "target",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0, 1, 0] },
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const group2: TreeNode<TreeNodeMeta> = {
+      nodeId: "group2",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group2" },
+    };
+    const nodes = createNodesMap([sourceToken, targetToken, group1, group2]);
+    expect(isAliasCircular("source-node", "target-node", nodes)).toBe(false);
+  });
+
+  test("should detect direct self-reference", () => {
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "token-node",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "circular",
+        type: "color",
+        extends: "{group1.circular}",
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const nodes = createNodesMap([token, group1]);
+    expect(isAliasCircular("token-node", "token-node", nodes)).toBe(true);
+  });
+
+  test("should detect two-token circular reference", () => {
+    const tokenA: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        extends: "{group2.tokenB}",
+      },
+    };
+    const tokenB: TreeNode<TokenMeta> = {
+      nodeId: "token-b",
+      parentId: "group2",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenB",
+        type: "color",
+        extends: "{group1.tokenA}",
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const group2: TreeNode<TreeNodeMeta> = {
+      nodeId: "group2",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group2" },
+    };
+    const nodes = createNodesMap([tokenA, tokenB, group1, group2]);
+    expect(isAliasCircular("token-a", "token-b", nodes)).toBe(true);
+  });
+
+  test("should detect three-token circular reference", () => {
+    const tokenA: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        extends: "{group2.tokenB}",
+      },
+    };
+    const tokenB: TreeNode<TokenMeta> = {
+      nodeId: "token-b",
+      parentId: "group2",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenB",
+        type: "color",
+        extends: "{group3.tokenC}",
+      },
+    };
+    const tokenC: TreeNode<TokenMeta> = {
+      nodeId: "token-c",
+      parentId: "group3",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenC",
+        type: "color",
+        extends: "{group1.tokenA}",
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const group2: TreeNode<TreeNodeMeta> = {
+      nodeId: "group2",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group2" },
+    };
+    const group3: TreeNode<TreeNodeMeta> = {
+      nodeId: "group3",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group3" },
+    };
+    const nodes = createNodesMap([
+      tokenA,
+      tokenB,
+      tokenC,
+      group1,
+      group2,
+      group3,
+    ]);
+    expect(isAliasCircular("token-a", "token-c", nodes)).toBe(true);
+  });
+
+  test("should return false for safe chain that doesn't loop back", () => {
+    const tokenA: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const tokenB: TreeNode<TokenMeta> = {
+      nodeId: "token-b",
+      parentId: "group2",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenB",
+        type: "color",
+        extends: "{group1.tokenA}",
+      },
+    };
+    const tokenC: TreeNode<TokenMeta> = {
+      nodeId: "token-c",
+      parentId: "group3",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenC",
+        type: "color",
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const group2: TreeNode<TreeNodeMeta> = {
+      nodeId: "group2",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group2" },
+    };
+    const group3: TreeNode<TreeNodeMeta> = {
+      nodeId: "group3",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group3" },
+    };
+    const nodes = createNodesMap([
+      tokenA,
+      tokenB,
+      tokenC,
+      group1,
+      group2,
+      group3,
+    ]);
+    expect(isAliasCircular("token-c", "token-b", nodes)).toBe(false);
+  });
+
+  test("should return false when target is not a token", () => {
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const nodes = createNodesMap([token, group1]);
+    expect(isAliasCircular("token-a", "group1", nodes)).toBe(false);
+  });
+
+  test("should return false when target does not exist", () => {
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const nodes = createNodesMap([token, group1]);
+    expect(isAliasCircular("token-a", "nonexistent", nodes)).toBe(false);
+  });
+
+  test("should detect circular reference with nested groups", () => {
+    const tokenA: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "nested-group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        extends: "{group2.tokenB}",
+      },
+    };
+    const tokenB: TreeNode<TokenMeta> = {
+      nodeId: "token-b",
+      parentId: "group2",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenB",
+        type: "color",
+        extends: "{group1.nested.tokenA}",
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const nestedGroup1: TreeNode<TreeNodeMeta> = {
+      nodeId: "nested-group1",
+      parentId: "group1",
+      index: "a0",
+      meta: { nodeType: "token-group", name: "nested" },
+    };
+    const group2: TreeNode<TreeNodeMeta> = {
+      nodeId: "group2",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group2" },
+    };
+    const nodes = createNodesMap([
+      tokenA,
+      tokenB,
+      group1,
+      nestedGroup1,
+      group2,
+    ]);
+    expect(isAliasCircular("token-a", "token-b", nodes)).toBe(true);
   });
 });
