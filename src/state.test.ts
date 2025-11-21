@@ -171,11 +171,16 @@ describe("resolveTokenValue", () => {
   };
 
   test("should return value directly when token has no extends", () => {
-    const token: TokenMeta = {
-      nodeType: "token",
-      name: "primary",
-      type: "color",
-      value: { colorSpace: "srgb", components: [1, 0, 0] },
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
     };
     const nodes = createNodesMap([]);
     expect(resolveTokenValue(token, nodes)).toEqual({
@@ -185,10 +190,15 @@ describe("resolveTokenValue", () => {
   });
 
   test("should throw error when token has no extends and no value", () => {
-    const token: TokenMeta = {
-      nodeType: "token",
-      name: "broken",
-      type: "color",
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "broken",
+        type: "color",
+      },
     };
     const nodes = createNodesMap([]);
     expect(() => resolveTokenValue(token, nodes)).toThrow(
@@ -208,11 +218,16 @@ describe("resolveTokenValue", () => {
         value: { colorSpace: "srgb", components: [0, 0, 1] },
       },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "brand",
-      type: "color",
-      extends: "{colors.primary}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "brand",
+        type: "color",
+        extends: "{colors.primary}",
+      },
     };
     const colorsGroup: TreeNode<TreeNodeMeta> = {
       nodeId: "colors-group",
@@ -251,11 +266,16 @@ describe("resolveTokenValue", () => {
       index: "a0",
       meta: { nodeType: "token-group", name: "colors", type: "color" },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "highlight",
-      type: "color",
-      extends: "{colors.secondary.accent}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "highlight",
+        type: "color",
+        extends: "{colors.secondary.accent}",
+      },
     };
     const nodes = createNodesMap([colorToken, nestedGroup, colorsGroup]);
     expect(resolveTokenValue(aliasToken, nodes)).toEqual({
@@ -282,11 +302,16 @@ describe("resolveTokenValue", () => {
       index: "a0",
       meta: { nodeType: "token-group", name: "base" },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "spacing",
-      type: "dimension",
-      extends: "{base.size}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "spacing",
+        type: "dimension",
+        extends: "{base.size}",
+      },
     };
     const nodes = createNodesMap([baseToken, baseGroup]);
     expect(resolveTokenValue(aliasToken, nodes)).toEqual({
@@ -330,11 +355,16 @@ describe("resolveTokenValue", () => {
       index: "a0",
       meta: { nodeType: "token-group", name: "semantic" },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "brand",
-      type: "color",
-      extends: "{semantic.primary}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "brand",
+        type: "color",
+        extends: "{semantic.primary}",
+      },
     };
     const nodes = createNodesMap([
       originalToken,
@@ -384,17 +414,20 @@ describe("resolveTokenValue", () => {
       meta: { nodeType: "token-group", name: "group2" },
     };
     const nodes = createNodesMap([token1, token2, group1, group2]);
-    expect(() =>
-      resolveTokenValue(
-        {
-          nodeType: "token",
-          name: "test",
-          type: "color",
-          extends: "{group1.tokenA}",
-        },
-        nodes,
-      ),
-    ).toThrow("Circular reference detected");
+    const testToken: TreeNode<TokenMeta> = {
+      nodeId: "test-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "test",
+        type: "color",
+        extends: "{group1.tokenA}",
+      },
+    };
+    expect(() => resolveTokenValue(testToken, nodes)).toThrow(
+      "Circular reference detected",
+    );
   });
 
   test("should detect self-referencing circular reference", () => {
@@ -416,7 +449,7 @@ describe("resolveTokenValue", () => {
       meta: { nodeType: "token-group", name: "group1" },
     };
     const nodes = createNodesMap([token, group1]);
-    expect(() => resolveTokenValue(token.meta as TokenMeta, nodes)).toThrow(
+    expect(() => resolveTokenValue(token, nodes)).toThrow(
       "Circular reference detected",
     );
   });
@@ -431,11 +464,16 @@ describe("resolveTokenValue", () => {
         name: "colors",
       },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "brand",
-      type: "color",
-      extends: "{colors.nonexistent}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "brand",
+        type: "color",
+        extends: "{colors.nonexistent}",
+      },
     };
     const nodes = createNodesMap([group]);
     expect(() => resolveTokenValue(aliasToken, nodes)).toThrow(
@@ -444,11 +482,16 @@ describe("resolveTokenValue", () => {
   });
 
   test("should throw error when intermediate path not found", () => {
-    const token: TokenMeta = {
-      nodeType: "token",
-      name: "test",
-      type: "color",
-      extends: "{colors.nested.deep}",
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "test",
+        type: "color",
+        extends: "{colors.nested.deep}",
+      },
     };
     const nodes = createNodesMap([]);
     expect(() => resolveTokenValue(token, nodes)).toThrow(
@@ -457,11 +500,16 @@ describe("resolveTokenValue", () => {
   });
 
   test("should throw error for invalid reference format with empty braces", () => {
-    const token: TokenMeta = {
-      nodeType: "token",
-      name: "test",
-      type: "color",
-      extends: "{}",
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "test",
+        type: "color",
+        extends: "{}",
+      },
     };
     const nodes = createNodesMap([]);
     expect(() => resolveTokenValue(token, nodes)).toThrow(
@@ -499,11 +547,16 @@ describe("resolveTokenValue", () => {
       index: "a0",
       meta: { nodeType: "token-group", name: "root" },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "alias",
-      type: "number",
-      extends: "{root.level1.level2.final}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "alias",
+        type: "number",
+        extends: "{root.level1.level2.final}",
+      },
     };
     const nodes = createNodesMap([
       deepToken,
@@ -558,11 +611,16 @@ describe("resolveTokenValue", () => {
           name: "base",
         },
       };
-      const aliasToken: TokenMeta = {
-        nodeType: "token",
-        name: "alias",
-        type: testCase.type,
-        extends: `{base.${testCase.name}}`,
+      const aliasToken: TreeNode<TokenMeta> = {
+        nodeId: "alias-node",
+        parentId: undefined,
+        index: "a0",
+        meta: {
+          nodeType: "token",
+          name: "alias",
+          type: testCase.type,
+          extends: `{base.${testCase.name}}`,
+        },
       };
       const nodes = createNodesMap([sourceToken, baseGroup]);
       expect(resolveTokenValue(aliasToken, nodes)).toEqual(
@@ -591,11 +649,16 @@ describe("resolveTokenValue", () => {
       index: "a0",
       meta: { nodeType: "token-group", name: "colors", type: "color" },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "brand",
-      // No type specified
-      extends: "{colors.primary}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "brand",
+        // No type specified
+        extends: "{colors.primary}",
+      },
     };
     const nodes = createNodesMap([colorToken, colorsGroup]);
     expect(resolveTokenValue(aliasToken, nodes)).toEqual({
@@ -622,11 +685,16 @@ describe("resolveTokenValue", () => {
       index: "a0",
       meta: { nodeType: "token-group", name: "base" },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "spacing",
-      // No type specified
-      extends: "{base.size}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "spacing",
+        // No type specified
+        extends: "{base.size}",
+      },
     };
     const nodes = createNodesMap([baseToken, baseGroup]);
     expect(resolveTokenValue(aliasToken, nodes)).toEqual({
@@ -636,10 +704,15 @@ describe("resolveTokenValue", () => {
   });
 
   test("should throw error when token has no value and no determinable type", () => {
-    const token: TokenMeta = {
-      nodeType: "token",
-      name: "broken",
-      // No type, no value
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "broken",
+        // No type, no value
+      },
     };
     const nodes = createNodesMap([]);
     expect(() => resolveTokenValue(token, nodes)).toThrow(
@@ -682,11 +755,16 @@ describe("resolveTokenValue", () => {
       index: "a0",
       meta: { nodeType: "token-group", name: "semantic" },
     };
-    const aliasToken: TokenMeta = {
-      nodeType: "token",
-      name: "brand",
-      // No type specified
-      extends: "{semantic.primary}",
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "brand",
+        // No type specified
+        extends: "{semantic.primary}",
+      },
     };
     const nodes = createNodesMap([
       originalToken,

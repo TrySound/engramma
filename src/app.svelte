@@ -263,10 +263,10 @@
       </div>
 
       {#snippet renderTreeItem(item: TreeItem)}
-        {@const meta = treeState.getNode(item.id)?.meta}
+        {@const node = treeState.getNode(item.id)}
         <div class="token">
-          {#if meta?.nodeType === "token"}
-            {@const tokenValue = resolveTokenValue(meta, treeState.nodes())}
+          {#if node?.meta.nodeType === "token"}
+            {@const tokenValue = resolveTokenValue(node, treeState.nodes())}
             {#if tokenValue.type === "color"}
               <div
                 class="token-preview"
@@ -275,8 +275,8 @@
             {/if}
           {/if}
           <span class="token-name">{item.name}</span>
-          {#if meta?.type}
-            <div class="token-hint">{meta.type}</div>
+          {#if node?.meta.type}
+            <div class="token-hint">{node?.meta.type}</div>
           {/if}
           <button
             class="edit-btn"

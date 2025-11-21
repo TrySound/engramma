@@ -86,14 +86,17 @@ function findTokenType(
  * Check for cycles: Maintain stack of resolving references
  */
 export const resolveTokenValue = (
-  token: TokenMeta,
+  node: TreeNode<TreeNodeMeta>,
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
   resolvingStack: Set<string> = new Set(),
-  nodeId?: string,
 ): Value => {
+  if (node.meta.nodeType !== "token") {
+    throw new Error("resolveTokenValue requires a token node");
+  }
+  const token = node.meta;
   // stop early with existing value
   if (!token.extends) {
-    const resolvedType = token.type ?? findTokenType(token, nodes, nodeId);
+    const resolvedType = token.type ?? findTokenType(token, nodes, node.nodeId);
     if (!resolvedType) {
       throw new Error(`Token "${token.name}" has no determinable type`);
     }
@@ -134,12 +137,7 @@ export const resolveTokenValue = (
   // resolve token further if has extends too
   const newStack = new Set(resolvingStack);
   newStack.add(extendsRef);
-  const resolved = resolveTokenValue(
-    tokenNode.meta,
-    nodes,
-    newStack,
-    currentNodeId,
-  );
+  const resolved = resolveTokenValue(tokenNode, nodes, newStack);
   return resolved;
 };
 

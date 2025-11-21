@@ -74,8 +74,8 @@
   });
   const meta = $derived(node?.meta);
   const tokenValue = $derived.by(() => {
-    if (meta?.nodeType === "token") {
-      return resolveTokenValue(meta, treeState.nodes());
+    if (node?.meta.nodeType === "token") {
+      return resolveTokenValue(node, treeState.nodes());
     }
   });
 

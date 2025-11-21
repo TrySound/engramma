@@ -80,20 +80,6 @@ describe("parseDesignTokens", () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  test("inherits type from parent group", () => {
-    const result = parseDesignTokens({
-      colors: {
-        $type: "color",
-        primary: {
-          $value: { colorSpace: "srgb", components: [0, 0, 1] },
-        },
-      },
-    });
-    expect(result.nodes).toHaveLength(2);
-    const tokenNode = result.nodes.find((n) => n.meta.nodeType === "token");
-    expect(tokenNode?.meta?.type).toBe("color");
-  });
-
   test("excludes token without determinable type", () => {
     const result = parseDesignTokens({
       noType: {

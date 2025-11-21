@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { TokenMeta } from "./state.svelte";
+  import type { TokenMeta, TreeNodeMeta } from "./state.svelte";
   import { treeState, resolveTokenValue } from "./state.svelte";
+  import type { TreeNode } from "./store";
   import { serializeColor } from "./color";
   import type { StrokeStyleValue } from "./schema";
   import {
@@ -178,8 +179,9 @@
   </div>
 {/snippet}
 
-{#snippet tokenCard(tokenMeta: TokenMeta)}
-  {@const tokenValue = resolveTokenValue(tokenMeta, treeState.nodes())}
+{#snippet tokenCard(node: TreeNode<TreeNodeMeta>)}
+  {@const tokenMeta = node.meta}
+  {@const tokenValue = resolveTokenValue(node, treeState.nodes())}
   <div class="token-card">
     <div class="token-name">{tokenMeta.name}</div>
     <div class="token-type">{titleCase(noCase(tokenValue.type))}</div>
@@ -317,7 +319,7 @@
     <div class="token-grid">
       {#each tokens as node (node.nodeId)}
         {#if node.meta.nodeType === "token"}
-          {@render tokenCard(node.meta)}
+          {@render tokenCard(node)}
         {/if}
       {/each}
     </div>

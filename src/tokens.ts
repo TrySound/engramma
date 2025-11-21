@@ -128,12 +128,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       return;
     }
     // Token meta
-    const {
-      description,
-      type = inheritedType,
-      deprecated,
-      extensions,
-    } = getMeta(obj);
+    const { description, type, deprecated, extensions } = getMeta(obj);
 
     // Check for $extends property (group extension)
     const extendsValue =
@@ -171,13 +166,13 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       return;
     }
 
-    if (!type) {
+    inheritedType = type ?? inheritedType;
+    if (!inheritedType) {
       recordError(serializedPath, "Token type cannot be determined");
       return;
     }
-
     const parsed = ValueSchema.safeParse({
-      type,
+      type: inheritedType,
       value,
     });
     if (!parsed.success) {
@@ -193,7 +188,8 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       description,
       deprecated,
       extensions,
-      ...parsed.data,
+      type: type as Value["type"],
+      value: parsed.data.value,
     });
   };
 
@@ -228,7 +224,6 @@ export const serializeDesignTokens = (
 
   const serializeNode = (
     node: TreeNode<TreeNodeMeta>,
-    parentType?: string,
   ): Record<string, unknown> => {
     const meta = node.meta;
 
@@ -250,7 +245,7 @@ export const serializeDesignTokens = (
       // Add children
       const children = childrenMap.get(node.nodeId) ?? [];
       for (const child of children) {
-        group[child.meta.name] = serializeNode(child, meta.type ?? parentType);
+        group[child.meta.name] = serializeNode(child);
       }
       return group;
     }
@@ -279,7 +274,7 @@ export const serializeDesignTokens = (
 
       // Only include $type if it's different from parent type
       // make token inherit type from group
-      if (meta.type && meta.type !== parentType) {
+      if (meta.type) {
         token.$type = meta.type;
       }
       if (meta.description !== undefined) {

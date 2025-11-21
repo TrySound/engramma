@@ -14,7 +14,6 @@ import type {
   StrokeStyleValue,
   TransitionValue,
   TypographyValue,
-  Value,
 } from "./schema";
 
 // https://www.designtokens.org/tr/2025.10/color
@@ -134,7 +133,7 @@ const processNode = (
   }
 
   if (node.meta.nodeType === "token") {
-    const tokenValue = resolveTokenValue(node.meta, allNodes);
+    const tokenValue = resolveTokenValue(node, allNodes);
     const varName = `--${kebabCase([...path, node.meta.name].join("-"))}`;
     switch (tokenValue.type) {
       case "color":
