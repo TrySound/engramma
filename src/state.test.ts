@@ -777,4 +777,23 @@ describe("resolveTokenValue", () => {
       value: { colorSpace: "srgb", components: [1, 0, 0] },
     });
   });
+
+  test("should resolve number token with 0", () => {
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "original",
+        type: "number",
+        value: 0,
+      },
+    };
+    const nodes = createNodesMap([token]);
+    expect(resolveTokenValue(token, nodes)).toEqual({
+      type: "number",
+      value: 0,
+    });
+  });
 });

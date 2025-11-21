@@ -28,52 +28,25 @@ export type TokenMeta = {
  * Helper function to find the type of a token
  * Searches through extends chain or parent group hierarchy
  */
-function findTokenType(
-  token: TokenMeta,
+export const findTokenType = (
+  node: TreeNode<TreeNodeMeta>,
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
-  nodeId?: string,
-): Value["type"] | undefined {
+): Value["type"] | undefined => {
   // If token has explicit type, use it
-  if (token.type) {
-    return token.type;
+  if (node.meta.type) {
+    return node.meta.type;
   }
-
-  // If token has extends, resolve the type from the extended token
-  if (token.extends) {
-    const extendsRef = token.extends;
-    const segments = extendsRef.replace(/[{}]/g, "").split(".").filter(Boolean);
-    if (segments.length === 0) {
-      return undefined;
-    }
-    const nodesList = Array.from(nodes.values());
-    let currentNodeId: string | undefined;
-    for (const segment of segments) {
-      const nextNode = nodesList.find(
-        (n) => n.parentId === currentNodeId && n.meta.name === segment,
-      );
-      currentNodeId = nextNode?.nodeId;
-    }
-    const extendedNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
-    if (extendedNode?.meta.nodeType === "token") {
-      return findTokenType(extendedNode.meta, nodes, currentNodeId);
-    }
-  }
-
   // If token is a child of a group, check parent group's type
-  if (nodeId) {
-    let currentParentId: string | undefined | null =
-      nodes.get(nodeId)?.parentId;
-    while (currentParentId !== undefined && currentParentId !== null) {
-      const parentNode = nodes.get(currentParentId);
-      if (parentNode?.meta.nodeType === "token-group" && parentNode.meta.type) {
-        return parentNode.meta.type;
-      }
-      currentParentId = parentNode?.parentId;
+  let currentParentId: string | undefined = node?.parentId;
+  while (currentParentId !== undefined) {
+    const parentNode = nodes.get(currentParentId);
+    if (parentNode?.meta.nodeType === "token-group" && parentNode.meta.type) {
+      return parentNode.meta.type;
     }
+    currentParentId = parentNode?.parentId;
   }
-
   return undefined;
-}
+};
 
 /**
  * "extends" resolution algorithm for aliases
@@ -96,11 +69,11 @@ export const resolveTokenValue = (
   const token = node.meta;
   // stop early with existing value
   if (!token.extends) {
-    const resolvedType = token.type ?? findTokenType(token, nodes, node.nodeId);
+    const resolvedType = token.type ?? findTokenType(node, nodes);
     if (!resolvedType) {
       throw new Error(`Token "${token.name}" has no determinable type`);
     }
-    if (token.value) {
+    if (token.value !== undefined) {
       return ValueSchema.parse({ type: resolvedType, value: token.value });
     }
     throw new Error(`Token "${token.name}" has no value to resolve`);

@@ -4,9 +4,10 @@
   interface Props {
     value: CubicBezierValue;
     onChange: (value: CubicBezierValue) => void;
+    disabled?: boolean;
   }
 
-  const { value, onChange }: Props = $props();
+  const { value, onChange, disabled = false }: Props = $props();
 
   const easingPresets: Record<string, [number, number, number, number]> = {
     ease: [0.25, 0.1, 0.25, 1],
@@ -45,6 +46,7 @@
   <select
     class="a-field"
     value={selectedPreset}
+    {disabled}
     onchange={(event) => {
       const preset = event.currentTarget.value;
       if (preset === "custom") {
@@ -68,6 +70,7 @@
     <input
       class="a-field"
       type="text"
+      {disabled}
       placeholder="e.g., 0.25, 0.1, 0.25, 1"
       value={customInput}
       oninput={(e) => {

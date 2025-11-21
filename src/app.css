@@ -100,6 +100,8 @@ textarea.a-field {
 }
 
 .a-popover {
+  position-area: center bottom;
+  position-try-fallbacks: flip-block;
   margin-inline: 0;
   margin-block: 8px;
   min-width: 160px;

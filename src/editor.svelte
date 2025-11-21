@@ -90,6 +90,116 @@
     }
   };
 
+  const getTokenPath = (nodeId: string): string[] => {
+    const path: string[] = [];
+    let currentId: string | undefined = nodeId;
+    const nodes = treeState.nodes();
+    while (currentId !== undefined) {
+      const currentNode = nodes.get(currentId);
+      if (!currentNode) break;
+      path.unshift(currentNode.meta.name);
+      currentId = currentNode.parentId;
+    }
+    return path;
+  };
+
+  const availableTokens = $derived.by(() => {
+    if (node?.meta.nodeType !== "token") {
+      return [];
+    }
+    const nodes = treeState.nodes();
+    const currentTokenType = tokenValue?.type;
+    if (!currentTokenType) {
+      return [];
+    }
+    const compatibleTokens = Array.from(nodes.values())
+      .filter((item) => {
+        if (item.nodeId !== node.nodeId && item.meta.nodeType === "token") {
+          const otherTokenType = resolveTokenValue(item, nodes).type;
+          return otherTokenType === currentTokenType;
+        }
+        return false;
+      })
+      .map((n) => ({
+        nodeId: n.nodeId,
+        path: getTokenPath(n.nodeId),
+        name: n.meta.name,
+      }))
+      .sort((a, b) => a.path.join(".").localeCompare(b.path.join(".")));
+    return compatibleTokens;
+  });
+
+  const makeAlias = (targetNodeId: string) => {
+    const targetNode = treeState.getNode(targetNodeId);
+    if (targetNode?.meta.nodeType === "token") {
+      const targetPath = getTokenPath(targetNodeId);
+      const extendsRef = `{${targetPath.join(".")}}`;
+      updateMeta({ extends: extendsRef, value: undefined });
+    }
+  };
+
+  const isAlias = $derived(
+    meta?.nodeType === "token" && meta.extends !== undefined,
+  );
+
+  let aliasSearchInput = $state("");
+  let selectedAliasIndex = $state(0);
+
+  const aliasPath = $derived.by(() => {
+    if (meta?.nodeType === "token" && meta.extends) {
+      // Extract path from {group.token} format
+      const extendsRef = meta.extends;
+      return extendsRef.replace(/[{}]/g, "").split(".").join(" > ");
+    }
+    return "";
+  });
+
+  const filteredAliasTokens = $derived.by(() => {
+    if (!aliasSearchInput.trim()) {
+      return availableTokens;
+    }
+    const query = aliasSearchInput.toLowerCase();
+    return availableTokens.filter((token) =>
+      token.path.some((part) => part.toLowerCase().includes(query)),
+    );
+  });
+
+  const handleAliasKeyDown = (event: KeyboardEvent) => {
+    if (!filteredAliasTokens.length) return;
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        if (selectedAliasIndex === filteredAliasTokens.length - 1) {
+          selectedAliasIndex = 0;
+        } else {
+          selectedAliasIndex = selectedAliasIndex + 1;
+        }
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        if (selectedAliasIndex === 0) {
+          selectedAliasIndex = filteredAliasTokens.length - 1;
+        } else {
+          selectedAliasIndex = selectedAliasIndex - 1;
+        }
+        break;
+      case "Enter":
+        if (selectedAliasIndex >= 0) {
+          event.preventDefault();
+          makeAlias(filteredAliasTokens[selectedAliasIndex].nodeId);
+          aliasSearchInput = "";
+          selectedAliasIndex = 0;
+          aliasPopoverElement?.hidePopover();
+        }
+        break;
+      case "Escape":
+        aliasSearchInput = "";
+        selectedAliasIndex = 0;
+        aliasPopoverElement?.hidePopover();
+        break;
+    }
+  };
+
   const handleNameChange = (newName: string) => {
     updateMeta({ name: newName });
   };
@@ -107,17 +217,22 @@
       updateMeta({ deprecated });
     }
   };
+
+  // svelte-ignore non_reactive_update
+  let aliasPopoverElement: undefined | HTMLDivElement;
 </script>
 
 {#snippet dimensionEditor(
   dimension: DimensionValue,
   onChange: (value: DimensionValue) => void,
+  disabled: boolean = false,
 )}
   <div class="dimension-input-group">
     <input
       class="a-field dimension-value"
       type="number"
       value={dimension.value}
+      {disabled}
       step="0.1"
       placeholder="Value"
       oninput={(e) => {
@@ -130,6 +245,7 @@
     <select
       class="a-field dimension-unit-select"
       value={dimension.unit}
+      {disabled}
       onchange={(e) => {
         onChange({
           ...dimension,
@@ -146,9 +262,11 @@
 {#snippet fontFamilyEditor(
   fontFamily: FontFamilyValue,
   onChange: (value: FontFamilyValue) => void,
+  disabled: boolean = false,
 )}
   <textarea
     class="a-field"
+    {disabled}
     placeholder="e.g., Inter, -apple-system, BlinkMacSystemFont, sans-serif"
     value={typeof fontFamily === "string" ? fontFamily : fontFamily.join(", ")}
     oninput={(e) => {
@@ -162,10 +280,12 @@
 {#snippet fontWeightEditor(
   fontWeight: number | string,
   onChange: (value: number) => void,
+  disabled: boolean = false,
 )}
   <select
     class="a-field"
     value={String(normalizeFontWeight(fontWeight))}
+    {disabled}
     onchange={(e) => {
       const value = Number.parseInt(e.currentTarget.value, 10);
       onChange(value);
@@ -187,11 +307,13 @@
 {#snippet strokeStyleEditor(
   strokeStyle: StrokeStyleValue,
   onChange: (value: StrokeStyleValue) => void,
+  disabled: boolean = false,
 )}
   {#if typeof strokeStyle === "string"}
     <select
       class="a-field"
       value={strokeStyle}
+      {disabled}
       onchange={(e) => {
         const value = e.currentTarget.value;
         if (value !== "custom") {
@@ -218,6 +340,7 @@
     <select
       class="a-field"
       value="custom"
+      {disabled}
       onchange={(e) => {
         const value = e.currentTarget.value;
         if (value !== "custom") {
@@ -242,6 +365,7 @@
       <select
         class="a-field"
         value={strokeStyle.lineCap}
+        {disabled}
         onchange={(e) => {
           onChange({
             ...strokeStyle,
@@ -377,6 +501,78 @@
       </div>
     {/if}
 
+    {#if meta?.nodeType === "token" && availableTokens.length > 0}
+      <div class="form-group">
+        <label class="a-label" for="alias-input">Alias Token</label>
+        <div class="combobox-container">
+          <input
+            id="alias-input"
+            class="a-field alias-input"
+            type="text"
+            placeholder="Search token..."
+            autocomplete="off"
+            value={aliasPath || aliasSearchInput}
+            oninput={(event) => {
+              aliasSearchInput = event.currentTarget.value;
+              selectedAliasIndex = 0;
+              aliasPopoverElement?.showPopover();
+            }}
+            onkeydown={handleAliasKeyDown}
+            onfocus={() => aliasPopoverElement?.showPopover()}
+            onblur={() => {
+              // Clear search after a brief delay to allow click handling
+              setTimeout(() => {
+                aliasSearchInput = "";
+                selectedAliasIndex = 0;
+                aliasPopoverElement?.hidePopover();
+              }, 200);
+            }}
+          />
+          {#if meta.extends}
+            <button
+              class="a-button"
+              aria-label="Remove alias"
+              onclick={() => {
+                if (tokenValue) {
+                  updateMeta({ ...tokenValue, extends: undefined });
+                  aliasSearchInput = "";
+                  selectedAliasIndex = 0;
+                  aliasPopoverElement?.hidePopover();
+                }
+              }}
+            >
+              <X size={20} />
+            </button>
+          {/if}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_interactive_supports_focus -->
+          <div
+            bind:this={aliasPopoverElement}
+            class="a-popover alias-popover"
+            popover="manual"
+            role="menu"
+          >
+            {#each filteredAliasTokens as token, index (token.nodeId)}
+              <button
+                class="a-item"
+                class:selected={index === selectedAliasIndex}
+                role="menuitem"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  makeAlias(token.nodeId);
+                  aliasSearchInput = "";
+                  selectedAliasIndex = 0;
+                  aliasPopoverElement?.hidePopover();
+                }}
+              >
+                {token.path.join(" > ")}
+              </button>
+            {/each}
+          </div>
+        </div>
+      </div>
+    {/if}
+
     {#if tokenValue?.type === "color"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -384,6 +580,7 @@
         <div class="color-picker-wrapper">
           <color-input
             value={serializeColor(tokenValue.value)}
+            disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
             onopen={(event: InputEvent) => {
               // track both open and close because of bug in css-color-component
               const input = event.target as HTMLInputElement;
@@ -411,6 +608,7 @@
             class="a-field dimension-value"
             type="number"
             value={tokenValue.value.value}
+            disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
             oninput={(e) => {
               const value = Number.parseFloat(e.currentTarget.value);
               if (!Number.isNaN(value)) {
@@ -424,6 +622,7 @@
             id="dimension-unit-input"
             class="a-field dimension-unit-select"
             value={tokenValue.value.unit}
+            disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
             onchange={(e) => {
               updateMeta({
                 value: {
@@ -450,6 +649,7 @@
             class="a-field duration-value"
             type="number"
             value={tokenValue.value.value}
+            disabled={isAlias}
             oninput={(e) => {
               const value = Number.parseFloat(e.currentTarget.value);
               if (!Number.isNaN(value)) {
@@ -463,6 +663,7 @@
             id="duration-unit-input"
             class="a-field duration-unit-select"
             value={tokenValue.value.unit}
+            disabled={isAlias}
             onchange={(e) => {
               updateMeta({
                 value: {
@@ -487,6 +688,7 @@
           class="a-field"
           type="number"
           value={tokenValue.value}
+          disabled={isAlias}
           oninput={(e) => {
             const value = Number.parseFloat(e.currentTarget.value);
             if (!Number.isNaN(value)) {
@@ -502,9 +704,13 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Font Family</label>
-        {@render fontFamilyEditor(tokenValue.value, (value) => {
-          updateMeta({ value });
-        })}
+        {@render fontFamilyEditor(
+          tokenValue.value,
+          (value) => {
+            updateMeta({ value });
+          },
+          isAlias,
+        )}
       </div>
     {/if}
 
@@ -512,9 +718,13 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Font Weight</label>
-        {@render fontWeightEditor(tokenValue.value, (value) => {
-          updateMeta({ value });
-        })}
+        {@render fontWeightEditor(
+          tokenValue.value,
+          (value) => {
+            updateMeta({ value });
+          },
+          isAlias,
+        )}
       </div>
     {/if}
 
@@ -524,6 +734,7 @@
         <label class="a-label">Easing Function</label>
         <CubicBezierEditor
           value={tokenValue.value}
+          disabled={isAlias}
           onChange={(value) => {
             updateMeta({ value });
           }}
@@ -541,6 +752,7 @@
               class="a-field duration-value"
               type="number"
               value={tokenValue.value.duration.value}
+              disabled={isAlias}
               step="1"
               placeholder="Value"
               oninput={(e) => {
@@ -561,6 +773,7 @@
             <select
               class="a-field duration-unit-select"
               value={tokenValue.value.duration.unit}
+              disabled={isAlias}
               onchange={(e) => {
                 updateMeta({
                   value: {
@@ -587,6 +800,7 @@
               class="a-field duration-value"
               type="number"
               value={tokenValue.value.delay.value}
+              disabled={isAlias}
               step="1"
               placeholder="Value"
               oninput={(e) => {
@@ -607,6 +821,7 @@
             <select
               class="a-field duration-unit-select"
               value={tokenValue.value.delay.unit}
+              disabled={isAlias}
               onchange={(e) => {
                 updateMeta({
                   value: {
@@ -631,6 +846,7 @@
         <label class="a-label">Timing Function</label>
         <CubicBezierEditor
           value={tokenValue.value.timingFunction}
+          disabled={isAlias}
           onChange={(value) => {
             updateMeta({
               value: { ...tokenValue.value, timingFunction: value },
@@ -644,22 +860,30 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Font Family</label>
-        {@render fontFamilyEditor(tokenValue.value.fontFamily, (fontFamily) => {
-          updateMeta({
-            value: { ...tokenValue.value, fontFamily },
-          });
-        })}
+        {@render fontFamilyEditor(
+          tokenValue.value.fontFamily,
+          (fontFamily) => {
+            updateMeta({
+              value: { ...tokenValue.value, fontFamily },
+            });
+          },
+          isAlias,
+        )}
       </div>
 
       <div class="typography-aux">
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Font Size</label>
-          {@render dimensionEditor(tokenValue.value.fontSize, (fontSize) => {
-            updateMeta({
-              value: { ...tokenValue.value, fontSize },
-            });
-          })}
+          {@render dimensionEditor(
+            tokenValue.value.fontSize,
+            (fontSize) => {
+              updateMeta({
+                value: { ...tokenValue.value, fontSize },
+              });
+            },
+            isAlias,
+          )}
         </div>
 
         <div class="form-group">
@@ -672,6 +896,7 @@
                 value: { ...tokenValue.value, fontWeight },
               });
             },
+            isAlias,
           )}
         </div>
 
@@ -682,6 +907,7 @@
             class="a-field"
             type="number"
             value={tokenValue.value.lineHeight}
+            disabled={isAlias}
             oninput={(e) => {
               const value = Number.parseFloat(e.currentTarget.value);
               if (!Number.isNaN(value)) {
@@ -705,6 +931,7 @@
                 value: { ...tokenValue.value, letterSpacing },
               });
             },
+            isAlias,
           )}
         </div>
       </div>
@@ -714,9 +941,13 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Style</label>
-        {@render strokeStyleEditor(tokenValue.value, (value) => {
-          updateMeta({ value });
-        })}
+        {@render strokeStyleEditor(
+          tokenValue.value,
+          (value) => {
+            updateMeta({ value });
+          },
+          isAlias,
+        )}
       </div>
     {/if}
 
@@ -736,6 +967,7 @@
                   <button
                     class="a-button"
                     aria-label="Remove shadow"
+                    disabled={isAlias}
                     onclick={() => {
                       const updated = shadows.filter((_, i) => i !== index);
                       updateMeta({
@@ -755,6 +987,7 @@
                       <input
                         type="checkbox"
                         checked={item.inset ?? false}
+                        disabled={isAlias}
                         onchange={(e) => {
                           const updated = [...shadows];
                           updated[index].inset =
@@ -774,6 +1007,7 @@
                     <div class="color-picker-wrapper">
                       <color-input
                         value={serializeColor(item.color)}
+                        disabled={isAlias}
                         onopen={(event: InputEvent) => {
                           const input = event.target as HTMLInputElement;
                           const updated = [...shadows];
@@ -800,37 +1034,49 @@
                   <div class="form-group">
                     <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="a-label">Offset X</label>
-                    {@render dimensionEditor(item.offsetX, (offsetX) => {
-                      const updated = [...shadows];
-                      updated[index].offsetX = offsetX;
-                      updateMeta({
-                        value: updated.length === 1 ? updated[0] : updated,
-                      });
-                    })}
+                    {@render dimensionEditor(
+                      item.offsetX,
+                      (offsetX) => {
+                        const updated = [...shadows];
+                        updated[index].offsetX = offsetX;
+                        updateMeta({
+                          value: updated.length === 1 ? updated[0] : updated,
+                        });
+                      },
+                      isAlias,
+                    )}
                   </div>
 
                   <div class="form-group">
                     <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="a-label">Offset Y</label>
-                    {@render dimensionEditor(item.offsetY, (offsetY) => {
-                      const updated = [...shadows];
-                      updated[index].offsetY = offsetY;
-                      updateMeta({
-                        value: updated.length === 1 ? updated[0] : updated,
-                      });
-                    })}
+                    {@render dimensionEditor(
+                      item.offsetY,
+                      (offsetY) => {
+                        const updated = [...shadows];
+                        updated[index].offsetY = offsetY;
+                        updateMeta({
+                          value: updated.length === 1 ? updated[0] : updated,
+                        });
+                      },
+                      isAlias,
+                    )}
                   </div>
 
                   <div class="form-group">
                     <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="a-label">Blur</label>
-                    {@render dimensionEditor(item.blur, (blur) => {
-                      const updated = [...shadows];
-                      updated[index].blur = blur;
-                      updateMeta({
-                        value: updated.length === 1 ? updated[0] : updated,
-                      });
-                    })}
+                    {@render dimensionEditor(
+                      item.blur,
+                      (blur) => {
+                        const updated = [...shadows];
+                        updated[index].blur = blur;
+                        updateMeta({
+                          value: updated.length === 1 ? updated[0] : updated,
+                        });
+                      },
+                      isAlias,
+                    )}
                   </div>
 
                   <div class="form-group">
@@ -845,6 +1091,7 @@
                           value: updated.length === 1 ? updated[0] : updated,
                         });
                       },
+                      isAlias,
                     )}
                   </div>
                 </div>
@@ -854,6 +1101,7 @@
 
           <button
             class="a-button"
+            disabled={isAlias}
             onclick={() => {
               const newShadow: ShadowItem = {
                 color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 1 },
@@ -879,6 +1127,7 @@
         <div class="color-picker-wrapper">
           <color-input
             value={serializeColor(border.color)}
+            disabled={isAlias}
             onopen={(event: InputEvent) => {
               const input = event.target as HTMLInputElement;
               updateMeta({
@@ -901,21 +1150,29 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Width</label>
-        {@render dimensionEditor(border.width, (width) => {
-          updateMeta({
-            value: { ...border, width },
-          });
-        })}
+        {@render dimensionEditor(
+          border.width,
+          (width) => {
+            updateMeta({
+              value: { ...border, width },
+            });
+          },
+          isAlias,
+        )}
       </div>
 
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Style</label>
-        {@render strokeStyleEditor(border.style, (style) => {
-          updateMeta({
-            value: { ...border, style },
-          });
-        })}
+        {@render strokeStyleEditor(
+          border.style,
+          (style) => {
+            updateMeta({
+              value: { ...border, style },
+            });
+          },
+          isAlias,
+        )}
       </div>
     {/if}
 
@@ -925,6 +1182,7 @@
         <label class="a-label">Gradient</label>
         <GradientEditor
           value={tokenValue.value}
+          disabled={isAlias}
           onChange={(value) => {
             updateMeta({ value });
           }}
@@ -1113,5 +1371,26 @@
     display: grid;
     gap: 16px;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .combobox-container {
+    position: relative;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr max-content;
+  }
+
+  .a-item.selected {
+    background: var(--bg-hover);
+  }
+
+  .alias-input {
+    width: 100%;
+    anchor-name: --editor-alias-input;
+  }
+
+  .alias-popover {
+    position-anchor: --editor-alias-input;
+    width: anchor-size(width);
   }
 </style>

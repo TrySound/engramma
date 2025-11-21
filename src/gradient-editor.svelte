@@ -6,9 +6,10 @@
   interface Props {
     value: GradientValue;
     onChange: (value: GradientValue) => void;
+    disabled?: boolean;
   }
 
-  const { value, onChange }: Props = $props();
+  const { value, onChange, disabled = false }: Props = $props();
 
   const handleAddStop = () => {
     // Add a new stop at the end with a slightly different color
@@ -73,6 +74,7 @@
             <button
               class="a-button"
               aria-label="Remove stop"
+              {disabled}
               onclick={() => handleRemoveStop(index)}
             >
               <X size={20} />
@@ -89,6 +91,7 @@
                 <div class="color-picker-wrapper">
                   <color-input
                     value={serializeColor(stop.color)}
+                    {disabled}
                     onopen={(event: InputEvent) => {
                       const input = event.target as HTMLInputElement;
                       handleStopColorChange(index, input.value);
@@ -114,6 +117,7 @@
                     min="0"
                     max="1"
                     step="0.01"
+                    {disabled}
                     value={stop.position}
                     oninput={(e) => {
                       const val = Number.parseFloat(e.currentTarget.value);
@@ -128,6 +132,7 @@
                     min="0"
                     max="1"
                     step="0.01"
+                    {disabled}
                     value={(stop.position * 100).toFixed(1)}
                     oninput={(e) => {
                       const val = Number.parseFloat(e.currentTarget.value);
@@ -145,7 +150,7 @@
       </div>
     {/each}
 
-    <button class="a-button" onclick={handleAddStop}>
+    <button class="a-button" {disabled} onclick={handleAddStop}>
       <Plus size={20} /> Add Stop
     </button>
   </div>
