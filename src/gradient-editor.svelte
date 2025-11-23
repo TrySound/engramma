@@ -68,23 +68,18 @@
   <div class="gradient-stops-list">
     {#each value as stop, index (index)}
       <div class="gradient-stop-row">
-        <div class="color-picker-wrapper">
-          <color-input
-            value={serializeColor(stop.color)}
-            {disabled}
-            onopen={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              handleStopColorChange(index, input.value);
-            }}
-            onclose={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              handleStopColorChange(index, input.value);
-            }}
-          ></color-input>
-          <span class="color-value">
-            {serializeColor(stop.color)}
-          </span>
-        </div>
+        <color-input
+          value={serializeColor(stop.color)}
+          {disabled}
+          onopen={(event: InputEvent) => {
+            const input = event.target as HTMLInputElement;
+            handleStopColorChange(index, input.value);
+          }}
+          onclose={(event: InputEvent) => {
+            const input = event.target as HTMLInputElement;
+            handleStopColorChange(index, input.value);
+          }}
+        ></color-input>
 
         <div class="position-input-group">
           <input
@@ -165,20 +160,6 @@
     grid-template-columns: auto 1fr auto;
     gap: 12px;
     align-items: center;
-  }
-
-  .color-picker-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .color-value {
-    font-family: var(--typography-monospace-code);
-    font-size: 12px;
-    color: var(--text-secondary);
-    min-width: 50px;
-    text-align: center;
   }
 
   .position-input-group {

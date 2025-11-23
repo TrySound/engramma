@@ -30,8 +30,26 @@ body {
   color: var(--text-primary);
 }
 
-.a-field {
-  padding: 8px 12px;
+.a-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+color-input {
+  gap: 8px;
+  width: stretch;
+
+  &::part(output) {
+    font-size: 12px;
+  }
+}
+
+.a-field,
+color-input::part(input) {
+  padding: 5px 12px 6px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -39,13 +57,15 @@ body {
   font-family: inherit;
   font-size: 14px;
   transition: all 0.2s ease;
+}
 
-  &:focus {
-    outline: none;
-    border-color: var(--accent);
-    background: var(--bg-primary);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
-  }
+.a-field:focus,
+/* cannot use css nesting inside of pseudo-element */
+color-input::part(input):focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 0.1);
 }
 
 .a-field[type="number"] {
@@ -63,23 +83,16 @@ textarea.a-field {
   max-height: 10lh;
 }
 
-.a-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 /* expects icons 20px to keep button square */
-.a-button {
+.a-button,
+color-input::part(trigger) {
   display: flex;
   min-height: 32px;
-  padding: 0 6px;
+  padding: 0 5px;
   gap: 4px;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   border-radius: 4px;
   color: var(--text-secondary);
@@ -87,16 +100,20 @@ textarea.a-field {
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
+}
 
-  &:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
+.a-button:hover,
+/* cannot use css nesting inside of pseudo-element */
+color-input::part(trigger):hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
-  }
+.a-button:focus-visible,
+color-input::part(trigger):focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 0.1);
 }
 
 .a-popover {

@@ -577,24 +577,19 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Color</label>
-        <div class="color-picker-wrapper">
-          <color-input
-            value={serializeColor(tokenValue.value)}
-            disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
-            onopen={(event: InputEvent) => {
-              // track both open and close because of bug in css-color-component
-              const input = event.target as HTMLInputElement;
-              updateMeta({ value: parseColor(input.value) });
-            }}
-            onclose={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              updateMeta({ value: parseColor(input.value) });
-            }}
-          ></color-input>
-          <span class="color-value">
-            {serializeColor(tokenValue.value)}
-          </span>
-        </div>
+        <color-input
+          value={serializeColor(tokenValue.value)}
+          disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
+          onopen={(event: InputEvent) => {
+            // track both open and close because of bug in css-color-component
+            const input = event.target as HTMLInputElement;
+            updateMeta({ value: parseColor(input.value) });
+          }}
+          onclose={(event: InputEvent) => {
+            const input = event.target as HTMLInputElement;
+            updateMeta({ value: parseColor(input.value) });
+          }}
+        ></color-input>
       </div>
     {/if}
 
@@ -979,31 +974,26 @@
                   Inset
                 </label>
 
-                <div class="color-picker-wrapper">
-                  <color-input
-                    value={serializeColor(item.color)}
-                    disabled={isAlias}
-                    onopen={(event: InputEvent) => {
-                      const input = event.target as HTMLInputElement;
-                      const updated = [...shadows];
-                      updated[index].color = parseColor(input.value);
-                      updateMeta({
-                        value: updated.length === 1 ? updated[0] : updated,
-                      });
-                    }}
-                    onclose={(event: InputEvent) => {
-                      const input = event.target as HTMLInputElement;
-                      const updated = [...shadows];
-                      updated[index].color = parseColor(input.value);
-                      updateMeta({
-                        value: updated.length === 1 ? updated[0] : updated,
-                      });
-                    }}
-                  ></color-input>
-                  <span class="color-value">
-                    {serializeColor(item.color)}
-                  </span>
-                </div>
+                <color-input
+                  value={serializeColor(item.color)}
+                  disabled={isAlias}
+                  onopen={(event: InputEvent) => {
+                    const input = event.target as HTMLInputElement;
+                    const updated = [...shadows];
+                    updated[index].color = parseColor(input.value);
+                    updateMeta({
+                      value: updated.length === 1 ? updated[0] : updated,
+                    });
+                  }}
+                  onclose={(event: InputEvent) => {
+                    const input = event.target as HTMLInputElement;
+                    const updated = [...shadows];
+                    updated[index].color = parseColor(input.value);
+                    updateMeta({
+                      value: updated.length === 1 ? updated[0] : updated,
+                    });
+                  }}
+                ></color-input>
 
                 {@render dimensionEditor(
                   item.offsetX,
@@ -1097,27 +1087,22 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Color</label>
-        <div class="color-picker-wrapper">
-          <color-input
-            value={serializeColor(border.color)}
-            disabled={isAlias}
-            onopen={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              updateMeta({
-                value: { ...border, color: parseColor(input.value) },
-              });
-            }}
-            onclose={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              updateMeta({
-                value: { ...border, color: parseColor(input.value) },
-              });
-            }}
-          ></color-input>
-          <span class="color-value">
-            {serializeColor(border.color)}
-          </span>
-        </div>
+        <color-input
+          value={serializeColor(border.color)}
+          disabled={isAlias}
+          onopen={(event: InputEvent) => {
+            const input = event.target as HTMLInputElement;
+            updateMeta({
+              value: { ...border, color: parseColor(input.value) },
+            });
+          }}
+          onclose={(event: InputEvent) => {
+            const input = event.target as HTMLInputElement;
+            updateMeta({
+              value: { ...border, color: parseColor(input.value) },
+            });
+          }}
+        ></color-input>
       </div>
 
       <div class="form-group">
@@ -1213,20 +1198,6 @@
     border-radius: 4px;
     font-size: 14px;
     color: var(--text-secondary);
-  }
-
-  .color-picker-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .color-value {
-    font-family: var(--typography-monospace-code);
-    font-size: 12px;
-    color: var(--text-secondary);
-    min-width: 50px;
-    text-align: center;
   }
 
   .dimension-input-group {

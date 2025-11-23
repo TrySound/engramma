@@ -2,6 +2,7 @@
   import "@oddbird/popover-polyfill";
   import "invokers-polyfill";
   import "dialog-closedby-polyfill";
+  import "color-input";
 </script>
 
 <script lang="ts">
@@ -189,7 +190,7 @@
   const handleKeyDown = (event: KeyboardEvent) => {
     if (
       event.target instanceof HTMLElement &&
-      event.target.closest("input, textarea, [contenteditable]")
+      event.target.closest("input, textarea, [contenteditable], color-input")
     ) {
       return;
     }
