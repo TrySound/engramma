@@ -1159,6 +1159,11 @@
 </div>
 
 <style>
+  .editor-popover {
+    /* decouple popover visibility from button in safari */
+    position-anchor: none;
+  }
+
   .editor-popover:popover-open {
     top: calc(var(--panel-header-height) + 16px);
     bottom: 16px;
@@ -1166,7 +1171,8 @@
     width: 360px;
     left: anchor(right --app-left-panel);
     display: grid;
-    grid-template-rows: max-content 1fr;
+    /* collapse heading and content in safari */
+    grid-template-rows: max-content max-content;
     overflow: auto;
   }
 
