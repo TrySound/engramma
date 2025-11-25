@@ -277,11 +277,11 @@
           <button
             class="a-small-button edit-button"
             aria-label="Edit"
-            commandfor="app-node-editor"
-            command="show-popover"
             onclick={() => {
               selectedItems.clear();
               selectedItems.add(item.id);
+              /* safari closes dialog whenever cursor is out of button */
+              document.getElementById("app-node-editor")?.showPopover();
             }}
           >
             <Settings size={16} />

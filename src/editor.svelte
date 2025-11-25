@@ -1159,11 +1159,6 @@
 </div>
 
 <style>
-  .editor-popover {
-    /* decouple popover visibility from button in safari */
-    position-anchor: none;
-  }
-
   .editor-popover:popover-open {
     top: calc(var(--panel-header-height) + 16px);
     bottom: 16px;
