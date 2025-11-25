@@ -47,7 +47,11 @@
     renderItem?: (item: TreeItem) => any;
     // drag and drop specific
     canAcceptChildren?: (itemId: string) => boolean;
-    onMove?: (items: string[], parentId: string, position: number) => void;
+    onMove?: (
+      items: string[],
+      parentId: undefined | string,
+      position: number,
+    ) => void;
   } = $props();
 
   // based on https://www.w3.org/WAI/ARIA/apg/patterns/treeview/
@@ -362,6 +366,7 @@
           dragState = { type: "dragging", items: sourceItems };
         },
         onDrop: () => {
+          window.clearTimeout(autoExpandTimeout);
           dragState = { type: "idle" };
         },
       }),
@@ -388,9 +393,7 @@
             targetElement?.parentElement?.closest("[role=treeitem]"),
           );
           const position = Number(targetElement?.getAttribute("data-position"));
-          if (targetParentId) {
-            onMove?.(sourceItems, targetParentId, position);
-          }
+          onMove?.(sourceItems, targetParentId, position);
         }
         if (instruction?.operation === "reorder-after") {
           if (expandedItems.has(targetId)) {
@@ -402,9 +405,7 @@
             const position = Number(
               targetElement?.getAttribute("data-position"),
             );
-            if (targetParentId) {
-              onMove?.(sourceItems, targetParentId, position + 1);
-            }
+            onMove?.(sourceItems, targetParentId, position + 1);
           }
         }
         if (instruction?.operation === "combine") {

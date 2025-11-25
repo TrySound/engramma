@@ -204,7 +204,7 @@
 
   const handleMove = (
     itemIds: string[],
-    newParentId: string,
+    newParentId: undefined | string,
     position: number,
   ) => {
     // get the children of the new parent to calculate the new index
