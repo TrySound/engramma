@@ -2,7 +2,7 @@
   import "@oddbird/popover-polyfill";
   import "invokers-polyfill";
   import "dialog-closedby-polyfill";
-  import "color-input";
+  import "hdr-color-input";
 </script>
 
 <script lang="ts">

@@ -1,0 +1,12 @@
+diff --git a/package.json b/package.json
+index 27cb861af346274a753c76b365ace438fd8fb95f..f9e578a5ac1b891cddd65e5f9fd94504221c16cc 100644
+--- a/package.json
++++ b/package.json
+@@ -45,7 +45,6 @@
+     "LICENSE",
+     "docs"
+   ],
+-  "sideEffects": false,
+   "scripts": {
+     "dev": "cd docs && npm run dev",
+     "dev:component": "vite",

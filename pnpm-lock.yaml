@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  hdr-color-input:
+    hash: 5f450ab260861614ab34c05bded005cc94111c70b7aa855328180a308f8e523c
+    path: patches/hdr-color-input.patch
+
 importers:
 
   .:
@@ -29,9 +34,6 @@ importers:
       change-case:
         specifier: ^5.4.4
         version: 5.4.4
-      color-input:
-        specifier: github:argyleink/css-color-component#1b63105
-        version: https://codeload.github.com/argyleink/css-color-component/tar.gz/1b63105
       colorjs.io:
         specifier: ^0.5.2
         version: 0.5.2
@@ -41,6 +43,9 @@ importers:
       fractional-indexing:
         specifier: ^3.2.0
         version: 3.2.0
+      hdr-color-input:
+        specifier: ^0.2.3
+        version: 0.2.3(patch_hash=5f450ab260861614ab34c05bded005cc94111c70b7aa855328180a308f8e523c)
       invokers-polyfill:
         specifier: ^0.5.7
         version: 0.5.7
@@ -491,10 +496,6 @@ packages:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
 
-  color-input@https://codeload.github.com/argyleink/css-color-component/tar.gz/1b63105:
-    resolution: {tarball: https://codeload.github.com/argyleink/css-color-component/tar.gz/1b63105}
-    version: 0.2.1
-
   colorjs.io@0.5.2:
     resolution: {integrity: sha512-twmVoizEW7ylZSN32OgKdXRmo1qg+wT5/6C3xu5b9QsWzSFAhHLn2xd8ro0diCsKfCj1RdaTP/nrcW+vAoQPIw==}
 
@@ -555,6 +556,9 @@ packages:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
+
+  hdr-color-input@0.2.3:
+    resolution: {integrity: sha512-6vaYPjWcqW4RavERKlFFnmL9ZsnMtSOv8L5+Ioxp8sFMGh2lXijNT4C99GYrlIwBHCYC5t3mocnC//XvnvZ7mg==}
 
   invokers-polyfill@0.5.7:
     resolution: {integrity: sha512-T1MmQ40+ARzC0W3YgyVUyncXIi1G7jnUq1PVdsYNr1ql7etYGHWNr3RKvJABIiFO5Ktk3xK9/A8+1lFASvcrKw==}
@@ -1072,11 +1076,6 @@ snapshots:
 
   clsx@2.1.1: {}
 
-  color-input@https://codeload.github.com/argyleink/css-color-component/tar.gz/1b63105:
-    dependencies:
-      '@preact/signals-core': 1.12.1
-      colorjs.io: 0.5.2
-
   colorjs.io@0.5.2: {}
 
   debug@4.4.3:
@@ -1140,6 +1139,11 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  hdr-color-input@0.2.3(patch_hash=5f450ab260861614ab34c05bded005cc94111c70b7aa855328180a308f8e523c):
+    dependencies:
+      '@preact/signals-core': 1.12.1
+      colorjs.io: 0.5.2
 
   invokers-polyfill@0.5.7: {}
 

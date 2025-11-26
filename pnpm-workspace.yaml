@@ -1,0 +1,2 @@
+patchedDependencies:
+  hdr-color-input: patches/hdr-color-input.patch
