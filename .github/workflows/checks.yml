@@ -1,0 +1,31 @@
+name: Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: "10.20.0"
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm format --check
+      - run: pnpm test
+      - run: pnpm build
