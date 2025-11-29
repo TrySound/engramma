@@ -44,6 +44,21 @@ describe("parseDesignTokens", () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  test("inherits type through nested groups", () => {
+    const result = parseDesignTokens({
+      color: {
+        $type: "color",
+        primitive: {
+          blue: {
+            "500": { $value: { colorSpace: "srgb", components: [0, 0, 1] } },
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(4);
+  });
+
   test("excludes invalid token with bad name from tree", () => {
     const result = parseDesignTokens({
       $invalid: {

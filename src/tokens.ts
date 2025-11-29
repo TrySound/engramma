@@ -78,6 +78,18 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     collectedErrors.push({ path, message });
   };
 
+  const findInheritedType = (parentNodeId: string | undefined) => {
+    let currentParentId = parentNodeId;
+    while (currentParentId !== undefined) {
+      const parentNode = nodes.find((n) => n.nodeId === currentParentId);
+      if (parentNode?.meta.nodeType === "token-group" && parentNode.meta.type) {
+        return parentNode.meta.type;
+      }
+      currentParentId = parentNode?.parentId;
+    }
+    return undefined;
+  };
+
   const parseGroup = (
     name: string,
     data: Record<string, unknown>,
@@ -166,7 +178,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       return;
     }
 
-    inheritedType = type ?? inheritedType;
+    inheritedType = type ?? inheritedType ?? findInheritedType(parentNodeId);
     if (!inheritedType) {
       recordError(serializedPath, "Token type cannot be determined");
       return;
@@ -179,7 +191,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       const errorMessages = parsed.error.issues
         .map((issue) => issue.message)
         .join(", ");
-      recordError(serializedPath, `Invalid ${type}: ${errorMessages}`);
+      recordError(serializedPath, `Invalid ${inheritedType}: ${errorMessages}`);
       return;
     }
     addNode(parentNodeId, {
