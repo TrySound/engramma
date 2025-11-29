@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  hdr-color-input:
-    hash: 5f450ab260861614ab34c05bded005cc94111c70b7aa855328180a308f8e523c
-    path: patches/hdr-color-input.patch
-
 importers:
 
   .:
@@ -50,8 +45,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
       hdr-color-input:
-        specifier: ^0.2.3
-        version: 0.2.3(patch_hash=5f450ab260861614ab34c05bded005cc94111c70b7aa855328180a308f8e523c)
+        specifier: ^0.2.5
+        version: 0.2.5
       invokers-polyfill:
         specifier: ^0.5.7
         version: 0.5.7
@@ -578,8 +573,8 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  hdr-color-input@0.2.3:
-    resolution: {integrity: sha512-6vaYPjWcqW4RavERKlFFnmL9ZsnMtSOv8L5+Ioxp8sFMGh2lXijNT4C99GYrlIwBHCYC5t3mocnC//XvnvZ7mg==}
+  hdr-color-input@0.2.5:
+    resolution: {integrity: sha512-/3AUOnWIOxh0qJbnFOFa33LnTGgHxiQgiI1KI7LILus0qcMYw07v11GjXnXfmPfntAhVaGXXjNDDhgmiUJ4vWw==}
 
   invokers-polyfill@0.5.7:
     resolution: {integrity: sha512-T1MmQ40+ARzC0W3YgyVUyncXIi1G7jnUq1PVdsYNr1ql7etYGHWNr3RKvJABIiFO5Ktk3xK9/A8+1lFASvcrKw==}
@@ -1178,7 +1173,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  hdr-color-input@0.2.3(patch_hash=5f450ab260861614ab34c05bded005cc94111c70b7aa855328180a308f8e523c):
+  hdr-color-input@0.2.5:
     dependencies:
       '@preact/signals-core': 1.12.1
       colorjs.io: 0.5.2
