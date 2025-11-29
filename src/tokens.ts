@@ -38,7 +38,7 @@ const isTokenReference = (value: unknown): value is string => {
     return false;
   }
   // Check if value matches the reference syntax: {group.token} or {group.nested.token}
-  return /^\{[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*\}$/.test(
+  return /^\{[a-zA-Z0-9_$][a-zA-Z0-9_$-]*(\.[a-zA-Z0-9_$][a-zA-Z0-9_$-]*)*\}$/.test(
     value,
   );
 };

@@ -1156,4 +1156,20 @@ describe("serializeDesignTokens", () => {
     const serialized = serializeDesignTokens(nodesToMap(parsed.nodes));
     expect(serialized).toEqual(input);
   });
+
+  test("allow numeric segment names", () => {
+    const result = parseDesignTokens({
+      color: {
+        $type: "color",
+        blue: {
+          "500": {
+            $value: { colorSpace: "srgb", components: [0, 0, 1] },
+          },
+        },
+        alias: { $value: "{color.blue.500}" },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(4);
+  });
 });
