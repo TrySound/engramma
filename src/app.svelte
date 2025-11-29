@@ -23,7 +23,23 @@
     startKeyUX,
   } from "keyux";
   import stringify from "json-stringify-pretty-compact";
-  import { Settings, Trash2, Folder } from "@lucide/svelte";
+  import {
+    Settings,
+    Trash2,
+    Folder,
+    Square,
+    Ruler,
+    Clock,
+    Type,
+    Hash,
+    Bold,
+    Tangent,
+    CaseUpper,
+    ArrowRightLeft,
+    LineSquiggle,
+    Paintbrush,
+    Tags,
+  } from "@lucide/svelte";
   import TreeView, { type TreeItem } from "./tree-view.svelte";
   import Editor from "./editor.svelte";
   import AddToken from "./add-token.svelte";
@@ -41,8 +57,7 @@
   import { generateCssVariables } from "./css-variables";
   import { generateScssVariables } from "./scss";
   import { serializeColor } from "./color";
-  import { titleCase } from "title-case";
-  import { noCase } from "change-case";
+  import type { Value } from "./schema";
 
   onMount(() => {
     return startKeyUX(window, [
@@ -322,6 +337,39 @@
         </div>
       </div>
 
+      {#snippet renderTypeIcon(type: Value["type"])}
+        {#if type === "color"}
+          <div
+            class="token-preview"
+            style="background: var(--text-secondary);"
+          ></div>
+        {:else if type === "dimension"}
+          <Ruler size={16} />
+        {:else if type === "duration"}
+          <Clock size={16} />
+        {:else if type === "number"}
+          <Hash size={16} />
+        {:else if type === "fontFamily"}
+          <CaseUpper size={16} />
+        {:else if type === "fontWeight"}
+          <Bold size={16} />
+        {:else if type === "cubicBezier"}
+          <Tangent size={16} />
+        {:else if type === "transition"}
+          <ArrowRightLeft size={16} />
+        {:else if type === "typography"}
+          <Type size={16} />
+        {:else if type === "strokeStyle"}
+          <LineSquiggle size={16} />
+        {:else if type === "shadow"}
+          <Tags size={16} />
+        {:else if type === "border"}
+          <Square size={16} />
+        {:else if type === "gradient"}
+          <Paintbrush size={16} />
+        {/if}
+      {/snippet}
+
       {#snippet renderTreeItem(item: TreeItem)}
         {@const node = treeState.getNode(item.id)}
         <div class="token">
@@ -332,15 +380,23 @@
                 class="token-preview"
                 style="background: {serializeColor(tokenValue.value)};"
               ></div>
+            {:else}
+              <div class="token-icon">
+                {@render renderTypeIcon(tokenValue.type)}
+              </div>
             {/if}
+          {/if}
+          {#if node?.meta.nodeType === "token-group"}
+            {@const type = findTokenType(node, treeState.nodes())}
+            <div class="token-icon">
+              {#if type}
+                {@render renderTypeIcon(type)}
+              {:else}
+                <Folder size={16} />
+              {/if}
+            </div>
           {/if}
           <span class="token-name">{item.name}</span>
-          {#if node?.meta.nodeType === "token"}
-            {@const tokenType = findTokenType(node, treeState.nodes())}
-            {#if tokenType}
-              <div class="token-hint">{titleCase(noCase(tokenType))}</div>
-            {/if}
-          {/if}
           <button
             class="a-small-button edit-button"
             aria-label="Edit"
@@ -510,10 +566,11 @@
     flex-shrink: 0;
   }
 
-  .token-hint {
-    font-size: 12px;
+  .token-icon {
+    flex-shrink: 0;
     opacity: 0.6;
-    font-family: var(--typography-monospace-code);
+    display: flex;
+    align-items: center;
   }
 
   .token-name {
