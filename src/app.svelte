@@ -32,6 +32,7 @@
   import Code from "./code.svelte";
   import type { TreeNode } from "./store";
   import {
+    findTokenType,
     resolveTokenValue,
     treeState,
     type TreeNodeMeta,
@@ -334,8 +335,11 @@
             {/if}
           {/if}
           <span class="token-name">{item.name}</span>
-          {#if node?.meta.type}
-            <div class="token-hint">{titleCase(noCase(node.meta.type))}</div>
+          {#if node?.meta.nodeType === "token"}
+            {@const tokenType = findTokenType(node, treeState.nodes())}
+            {#if tokenType}
+              <div class="token-hint">{titleCase(noCase(tokenType))}</div>
+            {/if}
           {/if}
           <button
             class="a-small-button edit-button"
