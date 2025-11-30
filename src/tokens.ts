@@ -16,7 +16,7 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
 const isTokenObject = (v: unknown): v is Record<string, unknown> =>
-  isObject(v) && ("$value" in v || "$extends" in v);
+  isObject(v) && "$value" in v;
 
 const isValidGroupName = (name: string) => {
   if (name.startsWith("$")) {
@@ -132,26 +132,6 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     // Token meta
     const { description, type, deprecated, extensions } = getMeta(obj);
 
-    // Check for $extends property (group extension)
-    const extendsValue =
-      typeof (obj as any).$extends === "string"
-        ? (obj as any).$extends
-        : undefined;
-
-    if (extendsValue) {
-      // Token is an alias via $extends, type is optional and will be resolved
-      addNode(parentNodeId, {
-        nodeType: "token",
-        name,
-        ...(type && { type: type as Value["type"] }),
-        extends: extendsValue,
-        description,
-        deprecated,
-        extensions,
-      } as any);
-      return;
-    }
-
     const value = (obj as any).$value;
 
     // Check if value is a token reference (curly brace syntax in $value)
@@ -190,7 +170,9 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       description,
       deprecated,
       extensions,
-      type: type as Value["type"],
+      // when value exists always infer and store type in tokens
+      // to alloww groups lock and unlock type freely
+      type: inheritedType as Value["type"],
       value: parsed.data.value,
     });
   };
@@ -226,6 +208,7 @@ export const serializeDesignTokens = (
 
   const serializeNode = (
     node: TreeNode<TreeNodeMeta>,
+    inheritedType: undefined | string,
   ): Record<string, unknown> => {
     const meta = node.meta;
 
@@ -247,7 +230,10 @@ export const serializeDesignTokens = (
       // Add children
       const children = childrenMap.get(node.nodeId) ?? [];
       for (const child of children) {
-        group[child.meta.name] = serializeNode(child);
+        group[child.meta.name] = serializeNode(
+          child,
+          meta.type ?? inheritedType,
+        );
       }
       return group;
     }
@@ -255,28 +241,24 @@ export const serializeDesignTokens = (
     if (meta.nodeType === "token") {
       // Token node
       const token: Record<string, unknown> = {};
-      const tokenMeta = meta as any;
 
       // Check if this is an alias token (with extends)
-      if (tokenMeta.extends) {
+      if (meta.extends) {
         // Determine if this is a token reference (with dots) or group extension
         // Token references: {group.token} or {group.nested.token}
         // Group extensions: {group} (single level, no dots)
-        const isTokenReference = tokenMeta.extends.includes(".");
+        const isTokenReference = meta.extends.includes(".");
         if (isTokenReference) {
           // Token reference goes in $value
-          token.$value = tokenMeta.extends;
-        } else {
-          // Group extension goes in $extends
-          token.$extends = tokenMeta.extends;
+          token.$value = meta.extends;
         }
-      } else if (tokenMeta.value !== undefined) {
-        token.$value = tokenMeta.value;
+      } else if (meta.value !== undefined) {
+        token.$value = meta.value;
       }
 
-      // Only include $type if it's different from parent type
+      // Only include $type if it's different from inherited type
       // make token inherit type from group
-      if (meta.type) {
+      if (meta.type && inheritedType !== meta.type) {
         token.$type = meta.type;
       }
       if (meta.description !== undefined) {
@@ -298,7 +280,7 @@ export const serializeDesignTokens = (
   const result: Record<string, unknown> = {};
   const rootChildren = childrenMap.get(undefined) ?? [];
   for (const node of rootChildren) {
-    result[node.meta.name] = serializeNode(node);
+    result[node.meta.name] = serializeNode(node, undefined);
   }
   return result;
 };

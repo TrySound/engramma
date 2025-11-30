@@ -1067,35 +1067,6 @@ describe("serializeDesignTokens", () => {
     );
   });
 
-  test("allows token with $extends but no $type", () => {
-    const result = parseDesignTokens({
-      colors: {
-        $type: "color",
-        primary: {
-          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
-        },
-      },
-      semantic: {
-        brand: {
-          $extends: "{colors}",
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    const brandToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
-    );
-    expect(brandToken?.meta).toEqual(
-      expect.objectContaining({
-        nodeType: "token",
-        name: "brand",
-        extends: "{colors}",
-      }),
-    );
-    // Type should not be present when not explicitly set
-    expect(brandToken?.meta?.type).toBeUndefined();
-  });
-
   test("allows token with $value reference but no $type", () => {
     const result = parseDesignTokens({
       colors: {
@@ -1184,5 +1155,38 @@ describe("serializeDesignTokens", () => {
     });
     expect(result.errors).toHaveLength(0);
     expect(result.nodes).toHaveLength(3);
+  });
+
+  test("skips $type on token if inherited has the same type", () => {
+    const { nodes } = parseDesignTokens({
+      colors: {
+        $type: "color",
+        blue: {
+          "500": {
+            $type: "color",
+            $value: { colorSpace: "srgb", components: [0, 0, 1] },
+          },
+          size: {
+            $type: "dimension",
+            $value: { value: 10, unit: "rem" },
+          },
+        },
+      },
+    });
+    expect(serializeDesignTokens(nodesToMap(nodes))).toEqual({
+      colors: {
+        $type: "color",
+        blue: {
+          "500": {
+            // here type is removed after serializing back because can be inherited from group
+            $value: { colorSpace: "srgb", components: [0, 0, 1] },
+          },
+          size: {
+            $type: "dimension",
+            $value: { value: 10, unit: "rem" },
+          },
+        },
+      },
+    });
   });
 });
