@@ -78,23 +78,12 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     collectedErrors.push({ path, message });
   };
 
-  const findInheritedType = (parentNodeId: string | undefined) => {
-    let currentParentId = parentNodeId;
-    while (currentParentId !== undefined) {
-      const parentNode = nodes.find((n) => n.nodeId === currentParentId);
-      if (parentNode?.meta.nodeType === "token-group" && parentNode.meta.type) {
-        return parentNode.meta.type;
-      }
-      currentParentId = parentNode?.parentId;
-    }
-    return undefined;
-  };
-
   const parseGroup = (
     name: string,
     data: Record<string, unknown>,
     parentPath: string[] | undefined,
     parentNodeId: string | undefined,
+    inheritedType: string | undefined,
   ) => {
     const path = parentPath ? [...parentPath, name] : [name];
     const serializedPath = path.join(".");
@@ -111,6 +100,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       deprecated: meta.deprecated,
       extensions: meta.extensions,
     };
+    inheritedType = groupMeta.type ?? inheritedType;
     const nodeId = addNode(parentNodeId, groupMeta);
     for (const childName of Object.keys(data)) {
       // include $root as a token, skip other $-props (group meta)
@@ -119,9 +109,9 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       }
       const child = data[childName];
       if (isTokenObject(child)) {
-        parseToken(childName, child, path, nodeId, groupMeta.type);
+        parseToken(childName, child, path, nodeId, inheritedType);
       } else if (isObject(child)) {
-        parseGroup(childName, child, path, nodeId);
+        parseGroup(childName, child, path, nodeId, inheritedType);
       }
     }
   };
@@ -178,7 +168,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       return;
     }
 
-    inheritedType = type ?? inheritedType ?? findInheritedType(parentNodeId);
+    inheritedType = type ?? inheritedType;
     if (!inheritedType) {
       recordError(serializedPath, "Token type cannot be determined");
       return;
@@ -210,7 +200,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     if (isTokenObject(child)) {
       parseToken(name, child, [], undefined, undefined);
     } else if (isObject(child)) {
-      parseGroup(name, child, undefined, undefined);
+      parseGroup(name, child, undefined, undefined, undefined);
     }
   }
 

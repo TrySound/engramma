@@ -55,7 +55,7 @@ describe("parseDesignTokens", () => {
         },
       },
     });
-    expect(result.errors).toHaveLength(0);
+    expect(result.errors).toEqual([]);
     expect(result.nodes).toHaveLength(4);
   });
 
