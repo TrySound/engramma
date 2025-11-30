@@ -83,6 +83,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     data: Record<string, unknown>,
     parentPath: string[] | undefined,
     parentNodeId: string | undefined,
+    inheritedType: string | undefined,
   ) => {
     const path = parentPath ? [...parentPath, name] : [name];
     const serializedPath = path.join(".");
@@ -99,6 +100,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       deprecated: meta.deprecated,
       extensions: meta.extensions,
     };
+    inheritedType = groupMeta.type ?? inheritedType;
     const nodeId = addNode(parentNodeId, groupMeta);
     for (const childName of Object.keys(data)) {
       // include $root as a token, skip other $-props (group meta)
@@ -107,9 +109,9 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       }
       const child = data[childName];
       if (isTokenObject(child)) {
-        parseToken(childName, child, path, nodeId, groupMeta.type);
+        parseToken(childName, child, path, nodeId, inheritedType);
       } else if (isObject(child)) {
-        parseGroup(childName, child, path, nodeId);
+        parseGroup(childName, child, path, nodeId, inheritedType);
       }
     }
   };
@@ -179,7 +181,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       const errorMessages = parsed.error.issues
         .map((issue) => issue.message)
         .join(", ");
-      recordError(serializedPath, `Invalid ${type}: ${errorMessages}`);
+      recordError(serializedPath, `Invalid ${inheritedType}: ${errorMessages}`);
       return;
     }
     addNode(parentNodeId, {
@@ -198,7 +200,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     if (isTokenObject(child)) {
       parseToken(name, child, [], undefined, undefined);
     } else if (isObject(child)) {
-      parseGroup(name, child, undefined, undefined);
+      parseGroup(name, child, undefined, undefined, undefined);
     }
   }
 
