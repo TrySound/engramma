@@ -32,7 +32,14 @@ const isValidTokenName = (name: string) => {
   }
   return isValidGroupName(name);
 };
-
+/**
+ * Returns true when the given value is a token reference string in
+ * "{group.token}" (or "{group.nested.token}") format.
+ *
+ * The function is intentionally defensive: it accepts any value and
+ * simply returns false for non-strings. This makes it safe to call
+ * from consumers without an extra `typeof === "string"` guard.
+ */
 export const isTokenReference = (value: unknown): value is string => {
   if (typeof value !== "string") {
     return false;

@@ -76,7 +76,7 @@ const processNode = (
     const token = node.meta as TokenMeta;
     const variableName = `$${kebabCase(noCase([...path, node.meta.name].join("-")))}`;
     // Handle token aliases (references to other tokens)
-    if (typeof token.value === "string" && isTokenReference(token.value)) {
+    if (isTokenReference(token.value)) {
       const variable = referenceToVariable(token.value);
       lines.push(`${variableName}: ${variable};`);
       return;

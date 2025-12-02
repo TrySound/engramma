@@ -203,20 +203,14 @@
   };
 
   const isAlias = $derived(
-    meta?.nodeType === "token" &&
-      typeof meta.value === "string" &&
-      isTokenReference(meta.value),
+    meta?.nodeType === "token" && isTokenReference(meta.value),
   );
 
   let aliasSearchInput = $state("");
   let selectedAliasIndex = $state(0);
 
   const aliasPath = $derived.by(() => {
-    if (
-      meta?.nodeType === "token" &&
-      typeof meta.value === "string" &&
-      isTokenReference(meta.value)
-    ) {
+    if (meta?.nodeType === "token" && isTokenReference(meta.value)) {
       // Extract path from {group.token} format
       return meta.value.replace(/[{}]/g, "").split(".").join(" > ");
     }
