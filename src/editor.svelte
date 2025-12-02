@@ -22,6 +22,7 @@
   import CubicBezierEditor from "./cubic-bezier-editor.svelte";
   import GradientEditor from "./gradient-editor.svelte";
   import type { TreeNode } from "./store";
+  import { isTokenReference } from "./tokens";
 
   let {
     id,
@@ -196,23 +197,28 @@
     const targetNode = treeState.getNode(targetNodeId);
     if (targetNode?.meta.nodeType === "token") {
       const targetPath = getTokenPath(targetNodeId);
-      const extendsRef = `{${targetPath.join(".")}}`;
-      updateMeta({ extends: extendsRef, value: undefined });
+      const reference = `{${targetPath.join(".")}}`;
+      updateMeta({ value: reference });
     }
   };
 
   const isAlias = $derived(
-    meta?.nodeType === "token" && meta.extends !== undefined,
+    meta?.nodeType === "token" &&
+      typeof meta.value === "string" &&
+      isTokenReference(meta.value),
   );
 
   let aliasSearchInput = $state("");
   let selectedAliasIndex = $state(0);
 
   const aliasPath = $derived.by(() => {
-    if (meta?.nodeType === "token" && meta.extends) {
+    if (
+      meta?.nodeType === "token" &&
+      typeof meta.value === "string" &&
+      isTokenReference(meta.value)
+    ) {
       // Extract path from {group.token} format
-      const extendsRef = meta.extends;
-      return extendsRef.replace(/[{}]/g, "").split(".").join(" > ");
+      return meta.value.replace(/[{}]/g, "").split(".").join(" > ");
     }
     return "";
   });
@@ -609,13 +615,16 @@
               }, 200);
             }}
           />
-          {#if meta.extends}
+          {#if isAlias}
             <button
               class="a-button"
               aria-label="Remove alias"
               onclick={() => {
                 if (tokenValue) {
-                  updateMeta({ ...tokenValue, extends: undefined });
+                  updateMeta({
+                    type: tokenValue.type,
+                    value: tokenValue.value,
+                  });
                   aliasSearchInput = "";
                   selectedAliasIndex = 0;
                   aliasPopoverElement?.hidePopover();
@@ -660,7 +669,7 @@
         <label class="a-label">Color</label>
         <color-input
           value={serializeColor(tokenValue.value)}
-          disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
+          disabled={isAlias}
           onopen={(event: InputEvent) => {
             // track both open and close because of bug in css-color-component
             const input = event.target as HTMLInputElement;
@@ -684,7 +693,7 @@
             class="a-field dimension-value"
             type="number"
             value={tokenValue.value.value}
-            disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
+            disabled={isAlias}
             oninput={(e) => {
               const value = Number.parseFloat(e.currentTarget.value);
               if (!Number.isNaN(value)) {
@@ -698,7 +707,7 @@
             id="dimension-unit-input"
             class="a-field dimension-unit-select"
             value={tokenValue.value.unit}
-            disabled={meta?.nodeType === "token" && meta?.extends !== undefined}
+            disabled={isAlias}
             onchange={(e) => {
               updateMeta({
                 value: {

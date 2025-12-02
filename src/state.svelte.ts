@@ -1,7 +1,7 @@
 import { createSubscriber } from "svelte/reactivity";
 import { TreeStore, type Transaction, type TreeNode } from "./store";
 import { type Value, ValueSchema } from "./schema";
-import { serializeDesignTokens } from "./tokens";
+import { isTokenReference, serializeDesignTokens } from "./tokens";
 import { setDataInUrl } from "./url-data";
 
 export type GroupMeta = {
@@ -17,8 +17,8 @@ export type TokenMeta = {
   nodeType: "token";
   name: string;
   type?: Value["type"];
-  value?: Value["value"];
-  extends?: string;
+  // When value is a string in {group.token} format it represents an alias
+  value?: Value["value"] | string;
   description?: string;
   deprecated?: boolean | string;
   extensions?: Record<string, unknown>;
@@ -67,51 +67,62 @@ export const resolveTokenValue = (
     throw new Error("resolveTokenValue requires a token node");
   }
   const token = node.meta;
-  // stop early with existing value
-  if (!token.extends) {
-    const resolvedType = token.type ?? findTokenType(node, nodes);
-    if (!resolvedType) {
-      throw new Error(`Token "${token.name}" has no determinable type`);
+  const tokenValue = token.value;
+
+  // Alias branch: value is a reference-like string in {group.token} format
+  if (
+    typeof tokenValue === "string" &&
+    tokenValue.startsWith("{") &&
+    tokenValue.endsWith("}")
+  ) {
+    const extendsRef = tokenValue;
+
+    // check for circular references
+    if (resolvingStack.has(extendsRef)) {
+      throw new Error(
+        `Circular reference detected: ${Array.from(resolvingStack).join(" -> ")} -> ${extendsRef}`,
+      );
     }
-    if (token.value !== undefined) {
-      return ValueSchema.parse({ type: resolvedType, value: token.value });
+
+    // extract token path from "group.token" or "group.nested.token"
+    const segments = extendsRef.replace(/[{}]/g, "").split(".").filter(Boolean);
+    if (segments.length === 0) {
+      throw new Error(`Invalid reference format: "${extendsRef}"`);
     }
-    throw new Error(`Token "${token.name}" has no value to resolve`);
+
+    const nodesList = Array.from(nodes.values());
+    let currentNodeId: string | undefined;
+    // navigate through segments
+    for (const segment of segments) {
+      const nextNode = nodesList.find(
+        (n) => n.parentId === currentNodeId && n.meta.name === segment,
+      );
+      currentNodeId = nextNode?.nodeId;
+    }
+
+    const tokenNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
+    if (tokenNode?.meta.nodeType !== "token") {
+      throw new Error(
+        `Final token node not found while resolving "${extendsRef}"`,
+      );
+    }
+
+    const newStack = new Set(resolvingStack);
+    newStack.add(extendsRef);
+    return resolveTokenValue(tokenNode, nodes, newStack);
   }
-  const extendsRef = token.extends;
-  // check for circular references
-  if (resolvingStack.has(extendsRef)) {
-    throw new Error(
-      `Circular reference detected: ${Array.from(resolvingStack).join(" -> ")} -> ${extendsRef}`,
-    );
+
+  // Non-alias branch: resolve value directly from this token
+  const resolvedType = token.type ?? findTokenType(node, nodes);
+  if (!resolvedType) {
+    throw new Error(`Token "${token.name}" has no determinable type`);
   }
-  // extract token path from "group.token" or "group.nested.token"
-  const segments = extendsRef.replace(/[{}]/g, "").split(".").filter(Boolean);
-  if (segments.length === 0) {
-    throw new Error(`Invalid reference format: "${extendsRef}"`);
+
+  if (tokenValue !== undefined) {
+    return ValueSchema.parse({ type: resolvedType, value: tokenValue });
   }
-  const nodesList = Array.from(nodes.values());
-  let currentNodeId: string | undefined;
-  // navigate through remaining segments
-  for (const segment of segments) {
-    // find child with matching name
-    const nextNode = nodesList.find(
-      (n) => n.parentId === currentNodeId && n.meta.name === segment,
-    );
-    currentNodeId = nextNode?.nodeId;
-  }
-  // final token node
-  const tokenNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
-  if (tokenNode?.meta.nodeType !== "token") {
-    throw new Error(
-      `Final token node not found while resolving "${extendsRef}"`,
-    );
-  }
-  // resolve token further if has extends too
-  const newStack = new Set(resolvingStack);
-  newStack.add(extendsRef);
-  const resolved = resolveTokenValue(tokenNode, nodes, newStack);
-  return resolved;
+
+  throw new Error(`Token "${token.name}" has no value to resolve`);
 };
 
 /**
@@ -131,14 +142,16 @@ export const isAliasCircular = (
 
   const targetTokenMeta = targetNode.meta;
 
-  // If target doesn't have an extends, it's safe
-  if (!targetTokenMeta.extends) {
+  const targetValue = targetTokenMeta.value;
+
+  // If target doesn't have an alias reference, it's safe
+  if (!isTokenReference(targetValue)) {
     return false;
   }
 
   // Build the path of tokens that the target extends through
   const visited = new Set<string>();
-  let currentRef: string | undefined = targetTokenMeta.extends;
+  let currentRef: string | undefined = targetValue;
 
   while (currentRef) {
     // Prevent infinite loops in our detection logic
@@ -165,12 +178,15 @@ export const isAliasCircular = (
       return true; // Circular dependency detected
     }
 
-    // Get the next extends reference if it exists
+    // Get the next alias reference if it exists
     const nextNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
-    if (nextNode?.meta.nodeType === "token" && nextNode.meta.extends) {
-      currentRef = nextNode.meta.extends;
+    if (
+      nextNode?.meta.nodeType === "token" &&
+      isTokenReference(nextNode.meta.value)
+    ) {
+      currentRef = nextNode.meta.value;
     } else {
-      // Reached end of extends chain
+      // Reached end of alias chain
       currentRef = undefined;
     }
   }

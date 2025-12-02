@@ -1,8 +1,13 @@
 import { kebabCase, noCase } from "change-case";
 import { compareTreeNodes, type TreeNode } from "./store";
-import { type TreeNodeMeta, resolveTokenValue } from "./state.svelte";
+import {
+  type TokenMeta,
+  type TreeNodeMeta,
+  resolveTokenValue,
+} from "./state.svelte";
 import type { StrokeStyleValue, TypographyValue } from "./schema";
 import { toDimensionValue, toFontFamily, toStyleValue } from "./css-variables";
+import { isTokenReference } from "./tokens";
 
 const addStrokeStyle = (
   variableName: string,
@@ -68,11 +73,11 @@ const processNode = (
   }
 
   if (node.meta.nodeType === "token") {
-    const token = node.meta as any;
+    const token = node.meta as TokenMeta;
     const variableName = `$${kebabCase(noCase([...path, node.meta.name].join("-")))}`;
     // Handle token aliases (references to other tokens)
-    if (token.extends) {
-      const variable = referenceToVariable(token.extends);
+    if (typeof token.value === "string" && isTokenReference(token.value)) {
+      const variable = referenceToVariable(token.value);
       lines.push(`${variableName}: ${variable};`);
       return;
     }

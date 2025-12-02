@@ -1062,7 +1062,7 @@ describe("serializeDesignTokens", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        extends: "{colors.primary}",
+        value: "{colors.primary}",
       }),
     );
   });
@@ -1089,7 +1089,7 @@ describe("serializeDesignTokens", () => {
       expect.objectContaining({
         nodeType: "token",
         name: "brand",
-        extends: "{colors.primary}",
+        value: "{colors.primary}",
       }),
     );
     // Type should not be present when not explicitly set
