@@ -264,23 +264,12 @@
     const button = (event.target as HTMLElement).closest(
       "button[commandfor]",
     ) as null | HTMLButtonElement;
-    if (button) {
-      (button.commandForElement as any).__commandSource = button;
-    }
-  };
-  const handleDocumentToggle = (event: ToggleEvent) => {
-    // ignore if anchor-positioning is already supported
-    if ("anchorName" in document.documentElement.style) {
-      return;
-    }
-    // ToggleEvent.source is not well supported
-    const target = event.target as HTMLElement;
-    const source = (target as any).__commandSource as HTMLElement;
-    if (event.newState === "open" && source) {
+    if (button && button?.commandForElement) {
+      const target = button.commandForElement;
       // closed state is not always triggers beforetoggle
       cleanupPositioningAutoUpdate?.();
       const updatePosition = () => {
-        computePosition(source, target, {
+        computePosition(button, target, {
           middleware: [
             offset(8),
             shift({ padding: 12 }),
@@ -292,17 +281,13 @@
           target.style.setProperty("top", `${y}px`);
         });
       };
-      cleanupPositioningAutoUpdate = autoUpdate(source, target, updatePosition);
-    }
-    if (event.newState === "closed") {
-      cleanupPositioningAutoUpdate?.();
+      cleanupPositioningAutoUpdate = autoUpdate(button, target, updatePosition);
     }
   };
 </script>
 
 <svelte:document
   onclickcapture={handleDocumentClick}
-  ontogglecapture={handleDocumentToggle}
   onkeydown={handleKeyDown}
 />
 
