@@ -1237,6 +1237,7 @@
   .editor-popover:popover-open {
     top: calc(var(--panel-header-height) + 16px);
     bottom: auto;
+    right: auto;
     max-height: calc(100dvh - var(--panel-header-height) - 16px - 16px);
     width: 360px;
     /* explicit size of left panel as a fallback browsers without anchor positioning support */
