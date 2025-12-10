@@ -153,9 +153,20 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       recordError(serializedPath, "Token type cannot be determined");
       return;
     }
+
+    // Convert single shadow objects to arrays for internal storage
+    let valueToValidate = value;
+    if (
+      inheritedType === "shadow" &&
+      isObject(valueToValidate) &&
+      !Array.isArray(valueToValidate)
+    ) {
+      valueToValidate = [valueToValidate];
+    }
+
     const parsed = ValueSchema.safeParse({
       type: inheritedType,
-      value,
+      value: valueToValidate,
     });
     if (!parsed.success) {
       const errorMessages = parsed.error.issues
@@ -242,8 +253,16 @@ export const serializeDesignTokens = (
       // Token node
       const token: Record<string, unknown> = {};
 
-      // Handle value field (can be string reference or actual value)
-      token.$value = meta.value;
+      // For shadow tokens stored as arrays, serialize as non-array if there's only one item
+      if (
+        meta.type === "shadow" &&
+        Array.isArray(meta.value) &&
+        meta.value.length === 1
+      ) {
+        token.$value = meta.value[0];
+      } else {
+        token.$value = meta.value;
+      }
 
       // Only include $type if it's different from inherited type
       // make token inherit type from group

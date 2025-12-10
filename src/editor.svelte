@@ -1029,9 +1029,7 @@
     {/if}
 
     {#if tokenValue?.type === "shadow"}
-      {@const shadows = Array.isArray(tokenValue.value)
-        ? tokenValue.value
-        : [tokenValue.value]}
+      {@const shadows = tokenValue.value}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Shadow</label>
@@ -1048,9 +1046,7 @@
                   onchange={(e) => {
                     const updated = [...shadows];
                     updated[index].inset = e.currentTarget.checked || undefined;
-                    updateMeta({
-                      value: updated.length === 1 ? updated[0] : updated,
-                    });
+                    updateMeta({ value: updated });
                   }}
                 />
                 <label for="shadow-inset-{index}" class="a-label">
@@ -1065,9 +1061,7 @@
                   disabled={isAlias}
                   onclick={() => {
                     const updated = shadows.filter((_, i) => i !== index);
-                    updateMeta({
-                      value: updated.length === 1 ? updated[0] : updated,
-                    });
+                    updateMeta({ value: updated });
                   }}
                 >
                   <X size={16} />
@@ -1082,17 +1076,13 @@
                   const input = event.target as HTMLInputElement;
                   const updated = [...shadows];
                   updated[index].color = parseColor(input.value);
-                  updateMeta({
-                    value: updated.length === 1 ? updated[0] : updated,
-                  });
+                  updateMeta({ value: updated });
                 }}
                 onclose={(event: InputEvent) => {
                   const input = event.target as HTMLInputElement;
                   const updated = [...shadows];
                   updated[index].color = parseColor(input.value);
-                  updateMeta({
-                    value: updated.length === 1 ? updated[0] : updated,
-                  });
+                  updateMeta({ value: updated });
                 }}
               ></color-input>
 
@@ -1101,9 +1091,7 @@
                 (offsetX) => {
                   const updated = [...shadows];
                   updated[index].offsetX = offsetX;
-                  updateMeta({
-                    value: updated.length === 1 ? updated[0] : updated,
-                  });
+                  updateMeta({ value: updated });
                 },
                 isAlias,
               )}
@@ -1113,9 +1101,7 @@
                 (offsetY) => {
                   const updated = [...shadows];
                   updated[index].offsetY = offsetY;
-                  updateMeta({
-                    value: updated.length === 1 ? updated[0] : updated,
-                  });
+                  updateMeta({ value: updated });
                 },
                 isAlias,
               )}
@@ -1125,9 +1111,7 @@
                 (blur) => {
                   const updated = [...shadows];
                   updated[index].blur = blur;
-                  updateMeta({
-                    value: updated.length === 1 ? updated[0] : updated,
-                  });
+                  updateMeta({ value: updated });
                 },
                 isAlias,
               )}
@@ -1137,9 +1121,7 @@
                 (spread) => {
                   const updated = [...shadows];
                   updated[index].spread = spread;
-                  updateMeta({
-                    value: updated.length === 1 ? updated[0] : updated,
-                  });
+                  updateMeta({ value: updated });
                 },
                 isAlias,
               )}

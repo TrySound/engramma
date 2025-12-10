@@ -363,14 +363,16 @@ describe("parseDesignTokens", () => {
     expect(result.errors).toHaveLength(0);
     expect(result.nodes[0].meta).toEqual(
       expect.objectContaining({
-        value: {
-          color: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
-          offsetX: { value: 0, unit: "px" },
-          offsetY: { value: 4, unit: "px" },
-          blur: { value: 8, unit: "px" },
-          spread: { value: 0, unit: "px" },
-          inset: false,
-        },
+        value: [
+          {
+            color: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+            offsetX: { value: 0, unit: "px" },
+            offsetY: { value: 4, unit: "px" },
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+            inset: false,
+          },
+        ],
       }),
     );
   });

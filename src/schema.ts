@@ -144,10 +144,7 @@ export const ShadowItemSchema = z.object({
 
 export type ShadowItem = z.infer<typeof ShadowItemSchema>;
 
-const ShadowValueSchema = z.union([
-  ShadowItemSchema,
-  z.array(ShadowItemSchema),
-]);
+const ShadowValueSchema = z.array(ShadowItemSchema);
 
 export type ShadowValue = z.infer<typeof ShadowValueSchema>;
 

@@ -74,12 +74,14 @@
       case "shadow":
         return {
           type,
-          value: {
-            color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.5 },
-            offsetX: { value: 0, unit: "px" },
-            offsetY: { value: 4, unit: "px" },
-            blur: { value: 6, unit: "px" },
-          },
+          value: [
+            {
+              color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.5 },
+              offsetX: { value: 0, unit: "px" },
+              offsetY: { value: 4, unit: "px" },
+              blur: { value: 6, unit: "px" },
+            },
+          ],
         };
       case "border":
         return {
