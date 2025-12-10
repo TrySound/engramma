@@ -32,8 +32,15 @@ const isValidTokenName = (name: string) => {
   }
   return isValidGroupName(name);
 };
-
-const isTokenReference = (value: unknown): value is string => {
+/**
+ * Returns true when the given value is a token reference string in
+ * "{group.token}" (or "{group.nested.token}") format.
+ *
+ * The function is intentionally defensive: it accepts any value and
+ * simply returns false for non-strings. This makes it safe to call
+ * from consumers without an extra `typeof === "string"` guard.
+ */
+export const isTokenReference = (value: unknown): value is string => {
   if (typeof value !== "string") {
     return false;
   }
@@ -143,7 +150,8 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
         deprecated,
         extensions,
         ...(type && { type: type as Value["type"] }),
-        extends: value,
+        // aliases are represented by a reference string stored in value
+        value,
       });
       return;
     }
@@ -242,17 +250,7 @@ export const serializeDesignTokens = (
       // Token node
       const token: Record<string, unknown> = {};
 
-      // Check if this is an alias token (with extends)
-      if (meta.extends) {
-        // Determine if this is a token reference (with dots) or group extension
-        // Token references: {group.token} or {group.nested.token}
-        // Group extensions: {group} (single level, no dots)
-        const isTokenReference = meta.extends.includes(".");
-        if (isTokenReference) {
-          // Token reference goes in $value
-          token.$value = meta.extends;
-        }
-      } else if (meta.value !== undefined) {
+      if (meta.value !== undefined) {
         token.$value = meta.value;
       }
 

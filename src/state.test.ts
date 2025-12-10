@@ -227,7 +227,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        extends: "{colors.primary}",
+        value: "{colors.primary}",
       },
     };
     const colorsGroup: TreeNode<TreeNodeMeta> = {
@@ -275,7 +275,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "highlight",
         type: "color",
-        extends: "{colors.secondary.accent}",
+        value: "{colors.secondary.accent}",
       },
     };
     const nodes = createNodesMap([colorToken, nestedGroup, colorsGroup]);
@@ -311,7 +311,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "spacing",
         type: "dimension",
-        extends: "{base.size}",
+        value: "{base.size}",
       },
     };
     const nodes = createNodesMap([baseToken, baseGroup]);
@@ -347,7 +347,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "primary",
         type: "color",
-        extends: "{base.original}",
+        value: "{base.original}",
       },
     };
     const semanticGroup: TreeNode<TreeNodeMeta> = {
@@ -364,7 +364,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        extends: "{semantic.primary}",
+        value: "{semantic.primary}",
       },
     };
     const nodes = createNodesMap([
@@ -388,7 +388,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        extends: "{group2.tokenB}",
+        value: "{group2.tokenB}",
       },
     };
     const token2: TreeNode<TokenMeta> = {
@@ -399,7 +399,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        extends: "{group1.tokenA}",
+        value: "{group1.tokenA}",
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -423,7 +423,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "test",
         type: "color",
-        extends: "{group1.tokenA}",
+        value: "{group1.tokenA}",
       },
     };
     expect(() => resolveTokenValue(testToken, nodes)).toThrow(
@@ -440,7 +440,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "circular",
         type: "color",
-        extends: "{group1.circular}",
+        value: "{group1.circular}",
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -473,7 +473,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        extends: "{colors.nonexistent}",
+        value: "{colors.nonexistent}",
       },
     };
     const nodes = createNodesMap([group]);
@@ -491,7 +491,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "test",
         type: "color",
-        extends: "{colors.nested.deep}",
+        value: "{colors.nested.deep}",
       },
     };
     const nodes = createNodesMap([]);
@@ -509,7 +509,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "test",
         type: "color",
-        extends: "{}",
+        value: "{}",
       },
     };
     const nodes = createNodesMap([]);
@@ -556,7 +556,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "alias",
         type: "number",
-        extends: "{root.level1.level2.final}",
+        value: "{root.level1.level2.final}",
       },
     };
     const nodes = createNodesMap([
@@ -620,7 +620,7 @@ describe("resolveTokenValue", () => {
           nodeType: "token",
           name: "alias",
           type: testCase.type,
-          extends: `{base.${testCase.name}}`,
+          value: `{base.${testCase.name}}`,
         },
       };
       const nodes = createNodesMap([sourceToken, baseGroup]);
@@ -658,7 +658,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         // No type specified
-        extends: "{colors.primary}",
+        value: "{colors.primary}",
       },
     };
     const nodes = createNodesMap([colorToken, colorsGroup]);
@@ -694,7 +694,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "spacing",
         // No type specified
-        extends: "{base.size}",
+        value: "{base.size}",
       },
     };
     const nodes = createNodesMap([baseToken, baseGroup]);
@@ -747,7 +747,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "primary",
         // No type specified
-        extends: "{base.original}",
+        value: "{base.original}",
       },
     };
     const semanticGroup: TreeNode<TreeNodeMeta> = {
@@ -764,7 +764,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         // No type specified
-        extends: "{semantic.primary}",
+        value: "{semantic.primary}",
       },
     };
     const nodes = createNodesMap([
@@ -858,7 +858,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "circular",
         type: "color",
-        extends: "{group1.circular}",
+        value: "{group1.circular}",
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -880,7 +880,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        extends: "{group2.tokenB}",
+        value: "{group2.tokenB}",
       },
     };
     const tokenB: TreeNode<TokenMeta> = {
@@ -891,7 +891,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        extends: "{group1.tokenA}",
+        value: "{group1.tokenA}",
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -919,7 +919,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        extends: "{group2.tokenB}",
+        value: "{group2.tokenB}",
       },
     };
     const tokenB: TreeNode<TokenMeta> = {
@@ -930,7 +930,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        extends: "{group3.tokenC}",
+        value: "{group3.tokenC}",
       },
     };
     const tokenC: TreeNode<TokenMeta> = {
@@ -941,7 +941,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenC",
         type: "color",
-        extends: "{group1.tokenA}",
+        value: "{group1.tokenA}",
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -993,7 +993,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        extends: "{group1.tokenA}",
+        value: "{group1.tokenA}",
       },
     };
     const tokenC: TreeNode<TokenMeta> = {
@@ -1088,7 +1088,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        extends: "{group2.tokenB}",
+        value: "{group2.tokenB}",
       },
     };
     const tokenB: TreeNode<TokenMeta> = {
@@ -1099,7 +1099,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        extends: "{group1.nested.tokenA}",
+        value: "{group1.nested.tokenA}",
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
