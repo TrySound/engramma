@@ -9,15 +9,29 @@
   --bg-secondary: #393939;
   --bg-tertiary: #383838;
   --bg-hover: #404040;
+  --bg-reference: oklch(42% 0.2 300);
+  --bg-reference-hover: oklch(50% 0.2 300);
   --border-color: #454545;
   --text-primary: #e6e6e6;
   --text-secondary: #999999;
   --accent: #18a0fb;
   --accent-hover: #27affe;
+  --popover-shadow:
+    0 2px 5px 0 rgb(0 0 0 / 35%), inset 0 0 0.5px 0 rgb(255 255 255 / 35%),
+    0 10px 16px 0 rgb(0 0 0 / 35%), inset 0 0.5px 0 0 rgb(255 255 255 / 8%);
   --panel-header-height: 40px;
 
   font-family: var(--typography-geometric-humanist);
   accent-color: var(--bg-secondary);
+}
+
+/* reduce show delay when another tooltip is shown already */
+:root:has([interestfor]:has-interest) [interestfor] {
+  interest-show-delay: 100ms;
+}
+
+:root:has([interestfor].has-interest) [interestfor] {
+  --interest-show-delay: 100ms;
 }
 
 * {
@@ -119,19 +133,26 @@ color-input::part(trigger) {
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  background: transparent;
+  background-color: transparent;
   border-radius: 4px;
   color: var(--text-secondary);
   transition: all 0.2s ease;
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
+
+  &[aria-pressed="true"] {
+    background-color: var(--bg-reference);
+    &:hover {
+      background-color: var(--bg-reference-hover);
+    }
+  }
 }
 
 .a-button:hover,
 /* cannot use css nesting inside of pseudo-element */
 color-input::part(trigger):hover {
-  background: var(--bg-hover);
+  background-color: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -166,18 +187,28 @@ color-input::part(trigger):focus-visible {
   background: var(--bg-primary);
   border: 0;
   padding: 0;
-  box-shadow:
-    0 2px 5px 0 rgb(0 0 0 / 35%),
-    inset 0 0 0.5px 0 rgb(255 255 255 / 35%),
-    0 10px 16px 0 rgb(0 0 0 / 35%),
-    inset 0 0.5px 0 0 rgb(255 255 255 / 8%);
+  box-shadow: var(--popover-shadow);
 }
 
 .a-menu {
-  position-area: center bottom;
+  position-area: bottom;
   position-try-fallbacks: flip-block;
   margin-inline: 0;
   margin-block: 8px;
+}
+
+.a-tooltip {
+  width: max-content;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 0;
+  padding: 4px 12px;
+  margin-inline: 0;
+  margin-block: 8px;
+  border-radius: 4px;
+  box-shadow: var(--popover-shadow);
+  position-area: center top;
+  position-try-fallbacks: flip-block;
 }
 
 .a-item {

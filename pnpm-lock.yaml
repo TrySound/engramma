@@ -47,6 +47,9 @@ importers:
       hdr-color-input:
         specifier: ^0.2.5
         version: 0.2.5
+      interestfor:
+        specifier: ^1.0.7
+        version: 1.0.7
       invokers-polyfill:
         specifier: ^0.5.7
         version: 0.5.7
@@ -578,6 +581,9 @@ packages:
 
   hdr-color-input@0.2.5:
     resolution: {integrity: sha512-/3AUOnWIOxh0qJbnFOFa33LnTGgHxiQgiI1KI7LILus0qcMYw07v11GjXnXfmPfntAhVaGXXjNDDhgmiUJ4vWw==}
+
+  interestfor@1.0.7:
+    resolution: {integrity: sha512-qJaN6JMrAjiA+aQ6TkQemZhLx5E8kGI9s0yXAJJbQHSKs0iBKrDc5nMNgGqH1V4x0ZveFJjVbmText/zTI7ZBg==}
 
   invokers-polyfill@0.5.7:
     resolution: {integrity: sha512-T1MmQ40+ARzC0W3YgyVUyncXIi1G7jnUq1PVdsYNr1ql7etYGHWNr3RKvJABIiFO5Ktk3xK9/A8+1lFASvcrKw==}
@@ -1185,6 +1191,8 @@ snapshots:
     dependencies:
       '@preact/signals-core': 1.12.1
       colorjs.io: 0.5.2
+
+  interestfor@1.0.7: {}
 
   invokers-polyfill@0.5.7: {}
 
