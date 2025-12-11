@@ -1,6 +1,7 @@
+import { formatError } from "zod";
 import { createSubscriber } from "svelte/reactivity";
 import { TreeStore, type Transaction, type TreeNode } from "./store";
-import { type Value, ValueSchema } from "./schema";
+import { type RawValue, type Value, ValueSchema } from "./schema";
 import { isTokenReference, serializeDesignTokens } from "./tokens";
 import { setDataInUrl } from "./url-data";
 
@@ -17,7 +18,7 @@ export type TokenMeta = {
   nodeType: "token";
   name: string;
   type?: Value["type"];
-  value: string | Value["value"];
+  value: RawValue["value"];
   description?: string;
   deprecated?: boolean | string;
   extensions?: Record<string, unknown>;
@@ -48,41 +49,13 @@ export const findTokenType = (
 };
 
 /**
- * "extends" resolution algorithm for aliases
- *
- * Parse reference: Extract token path from {group.token}
- * Split path: Convert to segments ["group", "token"]
- * Navigate to token: Find the target token object
- * Validate token: Ensure target has $value property
- * Return token value: Extract and return the $value content
- * Check for cycles: Maintain stack of resolving references
+ * Helper function to resolve a single token reference
  */
-export const resolveTokenValue = (
-  node: TreeNode<TreeNodeMeta>,
+const resolveTokenReference = (
+  reference: string,
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
-  resolvingStack: Set<string> = new Set(),
-): Value => {
-  if (node.meta.nodeType !== "token") {
-    throw new Error("resolveTokenValue requires a token node");
-  }
-  const token = node.meta;
-  // Check if value is a token reference string
-  const isReference = isTokenReference(token.value);
-  // If not a reference, resolve composite components if needed
-  if (!isReference) {
-    const resolvedType = token.type ?? findTokenType(node, nodes);
-    if (!resolvedType) {
-      throw new Error(`Token "${token.name}" has no determinable type`);
-    }
-    // Validate resolved value
-    const parsed = ValueSchema.parse({
-      type: resolvedType,
-      value: token.value,
-    });
-    return parsed;
-  }
-  // Handle token reference
-  const reference = token.value as string;
+  resolvingStack: Set<string>,
+): TreeNode<TreeNodeMeta> => {
   // check for circular references
   if (resolvingStack.has(reference)) {
     throw new Error(
@@ -108,16 +81,209 @@ export const resolveTokenValue = (
   }
   // final token node
   const tokenNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
-  if (tokenNode?.meta.nodeType !== "token") {
+  if (!tokenNode || tokenNode.meta.nodeType !== "token") {
     throw new Error(
       `Final token node not found while resolving "${reference}"`,
     );
   }
-  // resolve token further if it's also a reference
-  const newStack = new Set(resolvingStack);
-  newStack.add(reference);
-  const resolved = resolveTokenValue(tokenNode, nodes, newStack);
-  return resolved;
+  return tokenNode;
+};
+
+const resolveRawValue = <
+  Input extends RawValue,
+  Output extends Extract<Value, { type: Input["type"] }>,
+>(
+  tokenValue: Input,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+  resolvingStack: Set<string>,
+): Output => {
+  if (isTokenReference(tokenValue.value)) {
+    const reference = tokenValue.value;
+    const tokenNode = resolveTokenReference(reference, nodes, resolvingStack);
+    const newStack = new Set(resolvingStack);
+    newStack.add(reference);
+    return resolveTokenValue(tokenNode, nodes, newStack) as Output;
+  }
+  switch (tokenValue.type) {
+    case "transition":
+      return {
+        type: "transition",
+        value: {
+          duration: resolveRawValue(
+            { type: "duration", value: tokenValue.value.duration },
+            nodes,
+            resolvingStack,
+          ).value,
+          delay: resolveRawValue(
+            { type: "duration", value: tokenValue.value.delay },
+            nodes,
+            resolvingStack,
+          ).value,
+          timingFunction: resolveRawValue(
+            { type: "cubicBezier", value: tokenValue.value.timingFunction },
+            nodes,
+            resolvingStack,
+          ).value,
+        },
+      } satisfies Value as Output;
+    case "border":
+      return {
+        type: "border",
+        value: {
+          color: resolveRawValue(
+            { type: "color", value: tokenValue.value.color },
+            nodes,
+            resolvingStack,
+          ).value,
+          width: resolveRawValue(
+            { type: "dimension", value: tokenValue.value.width },
+            nodes,
+            resolvingStack,
+          ).value,
+          style: resolveRawValue(
+            { type: "strokeStyle", value: tokenValue.value.style },
+            nodes,
+            resolvingStack,
+          ).value,
+        },
+      } satisfies Value as Output;
+    case "shadow":
+      return {
+        type: "shadow",
+        value: tokenValue.value.map((shadow) => ({
+          color: resolveRawValue(
+            { type: "color", value: shadow.color },
+            nodes,
+            resolvingStack,
+          ).value,
+          offsetX: resolveRawValue(
+            { type: "dimension", value: shadow.offsetX },
+            nodes,
+            resolvingStack,
+          ).value,
+          offsetY: resolveRawValue(
+            { type: "dimension", value: shadow.offsetY },
+            nodes,
+            resolvingStack,
+          ).value,
+          blur: resolveRawValue(
+            { type: "dimension", value: shadow.blur },
+            nodes,
+            resolvingStack,
+          ).value,
+          spread: shadow.spread
+            ? resolveRawValue(
+                { type: "dimension", value: shadow.spread },
+                nodes,
+                resolvingStack,
+              ).value
+            : undefined,
+          inset: shadow.inset,
+        })),
+      } satisfies Value as Output;
+    case "typography":
+      return {
+        type: "typography",
+        value: {
+          fontFamily: resolveRawValue(
+            { type: "fontFamily", value: tokenValue.value.fontFamily },
+            nodes,
+            resolvingStack,
+          ).value,
+          fontSize: resolveRawValue(
+            { type: "dimension", value: tokenValue.value.fontSize },
+            nodes,
+            resolvingStack,
+          ).value,
+          fontWeight: resolveRawValue(
+            { type: "fontWeight", value: tokenValue.value.fontWeight },
+            nodes,
+            resolvingStack,
+          ).value,
+          letterSpacing: resolveRawValue(
+            { type: "dimension", value: tokenValue.value.letterSpacing },
+            nodes,
+            resolvingStack,
+          ).value,
+          lineHeight: resolveRawValue(
+            { type: "number", value: tokenValue.value.lineHeight },
+            nodes,
+            resolvingStack,
+          ).value,
+        },
+      } satisfies Value as Output;
+    case "gradient":
+      return {
+        type: "gradient",
+        value: tokenValue.value.map((gradient) => ({
+          color: resolveRawValue(
+            { type: "color", value: gradient.color },
+            nodes,
+            resolvingStack,
+          ).value,
+          position: gradient.position,
+        })),
+      } satisfies Value as Output;
+    default:
+      tokenValue.type satisfies
+        | "number"
+        | "color"
+        | "dimension"
+        | "duration"
+        | "cubicBezier"
+        | "fontFamily"
+        | "fontWeight"
+        | "strokeStyle";
+      return { type: tokenValue.type, value: tokenValue.value } as Output;
+  }
+};
+
+/**
+ * "extends" resolution algorithm for aliases
+ *
+ * Parse reference: Extract token path from {group.token}
+ * Split path: Convert to segments ["group", "token"]
+ * Navigate to token: Find the target token object
+ * Validate token: Ensure target has $value property
+ * Return token value: Extract and return the $value content
+ * Check for cycles: Maintain stack of resolving references
+ */
+export const resolveTokenValue = (
+  node: TreeNode<TreeNodeMeta>,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+  resolvingStack: Set<string> = new Set(),
+): Value => {
+  if (node.meta.nodeType !== "token") {
+    throw new Error("resolveTokenValue requires a token node");
+  }
+  const token = node.meta;
+  // Check if value is a token reference string
+  // If not a reference, resolve composite components if needed
+  if (isTokenReference(token.value)) {
+    // Handle token reference
+    const reference = token.value;
+    const tokenNode = resolveTokenReference(reference, nodes, resolvingStack);
+    // resolve token further if it's also a reference
+    const newStack = new Set(resolvingStack);
+    newStack.add(reference);
+    return resolveTokenValue(tokenNode, nodes, newStack);
+  }
+  const resolvedType = token.type ?? findTokenType(node, nodes);
+  if (!resolvedType) {
+    throw new Error(`Token "${token.name}" has no determinable type`);
+  }
+  // Resolve any component-level references in composite values
+  const resolvedValue = resolveRawValue(
+    { type: resolvedType, value: node.meta.value } as RawValue,
+    nodes,
+    resolvingStack,
+  );
+  // Validate resolved value
+  const parsed = ValueSchema.safeParse(resolvedValue);
+  if (!parsed.success) {
+    throw Error(formatError(parsed.error)._errors.join("\n"));
+  }
+  return parsed.data;
 };
 
 /**
@@ -138,10 +304,7 @@ export const isAliasCircular = (
   const targetTokenMeta = targetNode.meta;
 
   // If target doesn't have a reference value, it's safe
-  const isTargetReference =
-    typeof targetTokenMeta.value === "string" &&
-    isTokenReference(targetTokenMeta.value);
-  if (!isTargetReference) {
+  if (!isTokenReference(targetTokenMeta.value)) {
     return false;
   }
 

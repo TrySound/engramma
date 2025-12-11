@@ -255,7 +255,7 @@ describe("parseDesignTokens", () => {
     const result = parseDesignTokens({
       myNumber: {
         $type: "number",
-        $value: "not a number",
+        $value: true,
       },
     });
     expect(result.nodes).toHaveLength(0);
@@ -1190,5 +1190,415 @@ describe("serializeDesignTokens", () => {
         },
       },
     });
+  });
+
+  test("accepts shadow with component aliases", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        black: {
+          $value: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        md: {
+          $value: { value: 4, unit: "px" },
+        },
+      },
+      shadows: {
+        $type: "shadow",
+        primary: {
+          $value: {
+            color: "{colors.black}",
+            offsetX: "{spacing.md}",
+            offsetY: "{spacing.md}",
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+            inset: false,
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(6);
+    const shadowToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "primary",
+    );
+    expect(shadowToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "primary",
+        type: "shadow",
+        value: [
+          expect.objectContaining({
+            color: "{colors.black}",
+            offsetX: "{spacing.md}",
+            offsetY: "{spacing.md}",
+            blur: { value: 8, unit: "px" },
+          }),
+        ],
+      }),
+    );
+  });
+
+  test("accepts border with component aliases", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        gray: {
+          $value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        sm: {
+          $value: { value: 1, unit: "px" },
+        },
+      },
+      borders: {
+        $type: "border",
+        default: {
+          $value: {
+            color: "{colors.gray}",
+            width: "{spacing.sm}",
+            style: "solid",
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(6);
+    const borderToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "default",
+    );
+    expect(borderToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "default",
+        type: "border",
+        value: expect.objectContaining({
+          color: "{colors.gray}",
+          width: "{spacing.sm}",
+          style: "solid",
+        }),
+      }),
+    );
+  });
+
+  test("accepts typography with component aliases", () => {
+    const result = parseDesignTokens({
+      fonts: {
+        $type: "fontFamily",
+        body: {
+          $value: "sans-serif",
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        md: {
+          $value: { value: 16, unit: "px" },
+        },
+      },
+      typography: {
+        $type: "typography",
+        base: {
+          $value: {
+            fontFamily: "{fonts.body}",
+            fontSize: "{spacing.md}",
+            fontWeight: 400,
+            lineHeight: 1.5,
+            letterSpacing: { value: 0, unit: "px" },
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(6);
+    const typographyToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "base",
+    );
+    expect(typographyToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "base",
+        type: "typography",
+        value: expect.objectContaining({
+          fontFamily: "{fonts.body}",
+          fontSize: "{spacing.md}",
+          fontWeight: 400,
+          lineHeight: 1.5,
+          letterSpacing: { value: 0, unit: "px" },
+        }),
+      }),
+    );
+  });
+
+  test("accepts transition with component aliases", () => {
+    const result = parseDesignTokens({
+      durations: {
+        $type: "duration",
+        quick: {
+          $value: { value: 300, unit: "ms" },
+        },
+        slowDelay: {
+          $value: { value: 100, unit: "ms" },
+        },
+      },
+      easing: {
+        $type: "cubicBezier",
+        ease: {
+          $value: [0.25, 0.1, 0.25, 1],
+        },
+      },
+      transitions: {
+        $type: "transition",
+        smooth: {
+          $value: {
+            duration: "{durations.quick}",
+            delay: "{durations.slowDelay}",
+            timingFunction: "{easing.ease}",
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(7);
+    const transitionToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "smooth",
+    );
+    expect(transitionToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "smooth",
+        type: "transition",
+        value: expect.objectContaining({
+          duration: "{durations.quick}",
+          delay: "{durations.slowDelay}",
+          timingFunction: "{easing.ease}",
+        }),
+      }),
+    );
+  });
+
+  test("accepts gradient with component aliases", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        red: {
+          $value: { colorSpace: "srgb", components: [1, 0, 0] },
+        },
+        blue: {
+          $value: { colorSpace: "srgb", components: [0, 0, 1] },
+        },
+      },
+      gradients: {
+        $type: "gradient",
+        redToBlue: {
+          $value: [
+            {
+              color: "{colors.red}",
+              position: 0,
+            },
+            {
+              color: "{colors.blue}",
+              position: 1,
+            },
+          ],
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(5);
+    const gradientToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "redToBlue",
+    );
+    expect(gradientToken?.meta.nodeType).toBe("token");
+    if (gradientToken?.meta.nodeType === "token") {
+      expect(gradientToken.meta).toEqual(
+        expect.objectContaining({
+          nodeType: "token",
+          name: "redToBlue",
+          type: "gradient",
+        }),
+      );
+      const gradientValue = gradientToken.meta.value as Array<{
+        color: string | object;
+        position: number;
+      }>;
+      expect(Array.isArray(gradientValue)).toBe(true);
+      expect(gradientValue[0]).toEqual(
+        expect.objectContaining({
+          color: "{colors.red}",
+          position: 0,
+        }),
+      );
+      expect(gradientValue[1]).toEqual(
+        expect.objectContaining({
+          color: "{colors.blue}",
+          position: 1,
+        }),
+      );
+    }
+  });
+
+  test("serializes shadow with component aliases", () => {
+    const input = {
+      colors: {
+        $type: "color",
+        black: {
+          $value: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        md: {
+          $value: { value: 4, unit: "px" },
+        },
+      },
+      shadows: {
+        $type: "shadow",
+        primary: {
+          $value: {
+            color: "{colors.black}",
+            offsetX: "{spacing.md}",
+            offsetY: "{spacing.md}",
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+            inset: false,
+          },
+        },
+      },
+    };
+    const parsed = parseDesignTokens(input);
+    const serialized = serializeDesignTokens(nodesToMap(parsed.nodes));
+    expect(serialized).toEqual(input);
+  });
+
+  test("serializes border with component aliases", () => {
+    const input = {
+      colors: {
+        $type: "color",
+        gray: {
+          $value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        sm: {
+          $value: { value: 1, unit: "px" },
+        },
+      },
+      borders: {
+        $type: "border",
+        default: {
+          $value: {
+            color: "{colors.gray}",
+            width: "{spacing.sm}",
+            style: "solid",
+          },
+        },
+      },
+    };
+    const parsed = parseDesignTokens(input);
+    const serialized = serializeDesignTokens(nodesToMap(parsed.nodes));
+    expect(serialized).toEqual(input);
+  });
+
+  test("serializes typography with component aliases", () => {
+    const input = {
+      fonts: {
+        $type: "fontFamily",
+        body: {
+          $value: "sans-serif",
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        md: {
+          $value: { value: 16, unit: "px" },
+        },
+      },
+      typography: {
+        $type: "typography",
+        base: {
+          $value: {
+            fontFamily: "{fonts.body}",
+            fontSize: "{spacing.md}",
+            fontWeight: 400,
+            lineHeight: 1.5,
+            letterSpacing: { value: 0, unit: "px" },
+          },
+        },
+      },
+    };
+    const parsed = parseDesignTokens(input);
+    const serialized = serializeDesignTokens(nodesToMap(parsed.nodes));
+    expect(serialized).toEqual(input);
+  });
+
+  test("serializes transition with component aliases", () => {
+    const input = {
+      durations: {
+        $type: "duration",
+        quick: {
+          $value: { value: 300, unit: "ms" },
+        },
+        slowDelay: {
+          $value: { value: 100, unit: "ms" },
+        },
+      },
+      easing: {
+        $type: "cubicBezier",
+        ease: {
+          $value: [0.25, 0.1, 0.25, 1],
+        },
+      },
+      transitions: {
+        $type: "transition",
+        smooth: {
+          $value: {
+            duration: "{durations.quick}",
+            delay: "{durations.slowDelay}",
+            timingFunction: "{easing.ease}",
+          },
+        },
+      },
+    };
+    const parsed = parseDesignTokens(input);
+    const serialized = serializeDesignTokens(nodesToMap(parsed.nodes));
+    expect(serialized).toEqual(input);
+  });
+
+  test("serializes gradient with component aliases", () => {
+    const input = {
+      colors: {
+        $type: "color",
+        red: {
+          $value: { colorSpace: "srgb", components: [1, 0, 0] },
+        },
+        blue: {
+          $value: { colorSpace: "srgb", components: [0, 0, 1] },
+        },
+      },
+      gradients: {
+        $type: "gradient",
+        redToBlue: {
+          $value: [
+            {
+              color: "{colors.red}",
+              position: 0,
+            },
+            {
+              color: "{colors.blue}",
+              position: 1,
+            },
+          ],
+        },
+      },
+    };
+    const parsed = parseDesignTokens(input);
+    const serialized = serializeDesignTokens(nodesToMap(parsed.nodes));
+    expect(serialized).toEqual(input);
   });
 });

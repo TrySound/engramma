@@ -35,6 +35,11 @@ const ColorSchema = z.object({
   value: ColorValueSchema,
 });
 
+const RawColorSchema = z.object({
+  type: z.literal("color"),
+  value: z.union([ColorValueSchema, z.string()]),
+});
+
 const DimensionValueSchema = z.object({
   value: z.number(),
   unit: z.enum(["px", "rem"]),
@@ -45,6 +50,11 @@ export type DimensionValue = z.infer<typeof DimensionValueSchema>;
 const DimensionSchema = z.object({
   type: z.literal("dimension"),
   value: DimensionValueSchema,
+});
+
+const RawDimensionSchema = z.object({
+  type: z.literal("dimension"),
+  value: z.union([DimensionValueSchema, z.string()]),
 });
 
 const DurationValueSchema = z.object({
@@ -59,9 +69,19 @@ const DurationSchema = z.object({
   value: DurationValueSchema,
 });
 
+const RawDurationSchema = z.object({
+  type: z.literal("duration"),
+  value: z.union([DurationValueSchema, z.string()]),
+});
+
 const NumberSchema = z.object({
   type: z.literal("number"),
   value: z.number(),
+});
+
+const RawNumberSchema = z.object({
+  type: z.literal("number"),
+  value: z.union([z.number(), z.string()]),
 });
 
 const CubicBezierValueSchema = z
@@ -78,6 +98,11 @@ const CubicBezierSchema = z.object({
   value: CubicBezierValueSchema,
 });
 
+const RawCubicBezierSchema = z.object({
+  type: z.literal("cubicBezier"),
+  value: z.union([CubicBezierValueSchema, z.string()]),
+});
+
 const FontFamilyValueSchema = z.union([z.string(), z.array(z.string())]);
 
 export type FontFamilyValue = z.infer<typeof FontFamilyValueSchema>;
@@ -87,6 +112,11 @@ const FontFamilySchema = z.object({
   value: FontFamilyValueSchema,
 });
 
+const RawFontFamilySchema = z.object({
+  type: z.literal("fontFamily"),
+  value: z.union([FontFamilyValueSchema, z.string()]),
+});
+
 const FontWeightValueSchema = z.union([z.number(), z.string()]);
 
 const FontWeightSchema = z.object({
@@ -94,17 +124,9 @@ const FontWeightSchema = z.object({
   value: FontWeightValueSchema,
 });
 
-const TransitionValueSchema = z.object({
-  duration: DurationValueSchema,
-  delay: DurationValueSchema,
-  timingFunction: CubicBezierValueSchema,
-});
-
-export type TransitionValue = z.infer<typeof TransitionValueSchema>;
-
-const TransitionSchema = z.object({
-  type: z.literal("transition"),
-  value: TransitionValueSchema,
+const RawFontWeightSchema = z.object({
+  type: z.literal("fontWeight"),
+  value: z.union([FontWeightValueSchema, z.string()]),
 });
 
 const StrokeStyleValueSchema = z.union([
@@ -133,6 +155,36 @@ const StrokeStyleSchema = z.object({
   value: StrokeStyleValueSchema,
 });
 
+const RawStrokeStyleSchema = z.object({
+  type: z.literal("strokeStyle"),
+  value: z.union([StrokeStyleValueSchema, z.string()]),
+});
+
+const TransitionValueSchema = z.object({
+  duration: DurationValueSchema,
+  delay: DurationValueSchema,
+  timingFunction: CubicBezierValueSchema,
+});
+
+export type TransitionValue = z.infer<typeof TransitionValueSchema>;
+
+const TransitionSchema = z.object({
+  type: z.literal("transition"),
+  value: TransitionValueSchema,
+});
+
+const RawTransitionSchema = z.object({
+  type: z.literal("transition"),
+  value: z.union([
+    z.object({
+      duration: z.union([DurationValueSchema, z.string()]),
+      delay: z.union([DurationValueSchema, z.string()]),
+      timingFunction: z.union([CubicBezierValueSchema, z.string()]),
+    }),
+    z.string(), // token reference
+  ]),
+});
+
 export const ShadowItemSchema = z.object({
   color: ColorValueSchema,
   offsetX: DimensionValueSchema,
@@ -153,6 +205,23 @@ const ShadowSchema = z.object({
   value: ShadowValueSchema,
 });
 
+const RawShadowItemSchema = z.object({
+  color: z.union([ColorValueSchema, z.string()]),
+  offsetX: z.union([DimensionValueSchema, z.string()]),
+  offsetY: z.union([DimensionValueSchema, z.string()]),
+  blur: z.union([DimensionValueSchema, z.string()]),
+  spread: z.union([DimensionValueSchema, z.string()]).optional(),
+  inset: z.boolean().optional(),
+});
+
+const RawShadowSchema = z.object({
+  type: z.literal("shadow"),
+  value: z.union([
+    z.array(RawShadowItemSchema),
+    z.string(), // token reference
+  ]),
+});
+
 const BorderValueSchema = z.object({
   color: ColorValueSchema,
   width: DimensionValueSchema,
@@ -164,6 +233,18 @@ export type BorderValue = z.infer<typeof BorderValueSchema>;
 const BorderSchema = z.object({
   type: z.literal("border"),
   value: BorderValueSchema,
+});
+
+const RawBorderSchema = z.object({
+  type: z.literal("border"),
+  value: z.union([
+    z.object({
+      color: z.union([ColorValueSchema, z.string()]),
+      width: z.union([DimensionValueSchema, z.string()]),
+      style: z.union([StrokeStyleValueSchema, z.string()]),
+    }),
+    z.string(), // token reference
+  ]),
 });
 
 const TypographyValueSchema = z.object({
@@ -181,12 +262,28 @@ const TypographySchema = z.object({
   value: TypographyValueSchema,
 });
 
-const GradientStopSchema = z.object({
-  color: ColorValueSchema,
-  position: z.number().min(0).max(1),
+const RawTypographySchema = z.object({
+  type: z.literal("typography"),
+  value: z.union([
+    z.object({
+      fontFamily: z.union([FontFamilyValueSchema, z.string()]),
+      fontSize: z.union([DimensionValueSchema, z.string()]),
+      fontWeight: z.union([FontWeightValueSchema, z.string()]),
+      letterSpacing: z.union([DimensionValueSchema, z.string()]),
+      lineHeight: z.union([z.number(), z.string()]),
+    }),
+    z.string(), // token reference
+  ]),
 });
 
-const GradientValueSchema = z.array(GradientStopSchema);
+const GradientPosition = z.number().min(0).max(1);
+
+const GradientValueSchema = z.array(
+  z.object({
+    color: ColorValueSchema,
+    position: GradientPosition,
+  }),
+);
 
 export type GradientValue = z.infer<typeof GradientValueSchema>;
 
@@ -195,7 +292,21 @@ const GradientSchema = z.object({
   value: GradientValueSchema,
 });
 
+const RawGradientSchema = z.object({
+  type: z.literal("gradient"),
+  value: z.union([
+    z.array(
+      z.object({
+        color: z.union([ColorValueSchema, z.string()]),
+        position: GradientPosition,
+      }),
+    ),
+    z.string(), // token reference
+  ]),
+});
+
 export const ValueSchema = z.union([
+  // primitive tokens
   ColorSchema,
   DimensionSchema,
   DurationSchema,
@@ -203,8 +314,9 @@ export const ValueSchema = z.union([
   NumberSchema,
   FontFamilySchema,
   FontWeightSchema,
-  TransitionSchema,
   StrokeStyleSchema,
+  // composite tokens
+  TransitionSchema,
   ShadowSchema,
   BorderSchema,
   TypographySchema,
@@ -212,3 +324,27 @@ export const ValueSchema = z.union([
 ]);
 
 export type Value = z.infer<typeof ValueSchema>;
+
+export const RawValueSchema = z.union([
+  // primitive tokens
+  RawColorSchema,
+  RawDimensionSchema,
+  RawDurationSchema,
+  RawCubicBezierSchema,
+  RawNumberSchema,
+  RawFontFamilySchema,
+  RawFontWeightSchema,
+  RawStrokeStyleSchema,
+  // composite tokens
+  RawTransitionSchema,
+  RawShadowSchema,
+  RawBorderSchema,
+  RawTypographySchema,
+  RawGradientSchema,
+]);
+
+export type RawValue = z.infer<typeof RawValueSchema>;
+
+/* make sure Value and Raw Value are in sync */
+(({}) as unknown as Value)["type"] satisfies RawValue["type"];
+(({}) as unknown as RawValue)["type"] satisfies Value["type"];
