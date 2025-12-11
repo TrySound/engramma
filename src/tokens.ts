@@ -1,7 +1,7 @@
 import { generateKeyBetween } from "fractional-indexing";
 import { compareTreeNodes, type TreeNode } from "./store";
 import type { GroupMeta, TokenMeta } from "./state.svelte";
-import { ValueSchema, type Value } from "./schema";
+import { RawValueSchema, type RawValue } from "./schema";
 
 type TreeNodeMeta = GroupMeta | TokenMeta;
 
@@ -142,7 +142,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
         description,
         deprecated,
         extensions,
-        ...(type && { type: type as Value["type"] }),
+        ...(type && { type: type as RawValue["type"] }),
         value,
       });
       return;
@@ -164,7 +164,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       valueToValidate = [valueToValidate];
     }
 
-    const parsed = ValueSchema.safeParse({
+    const parsed = RawValueSchema.safeParse({
       type: inheritedType,
       value: valueToValidate,
     });
@@ -183,7 +183,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       extensions,
       // when value exists always infer and store type in tokens
       // to alloww groups lock and unlock type freely
-      type: inheritedType as Value["type"],
+      type: inheritedType as RawValue["type"],
       value: parsed.data.value,
     });
   };

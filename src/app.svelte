@@ -3,6 +3,7 @@
   import "invokers-polyfill";
   import "dialog-closedby-polyfill";
   import "hdr-color-input";
+  import "interestfor";
 </script>
 
 <script lang="ts">

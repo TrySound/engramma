@@ -761,6 +761,416 @@ describe("resolveTokenValue", () => {
       value: 0,
     });
   });
+
+  test("should resolve shadow with component aliases", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "color-node",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "black",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors" },
+    };
+    const spacingToken: TreeNode<TokenMeta> = {
+      nodeId: "spacing-node",
+      parentId: "spacing-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "md",
+        type: "dimension",
+        value: { value: 4, unit: "px" },
+      },
+    };
+    const spacingGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "spacing-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "spacing" },
+    };
+    const shadowToken: TreeNode<TokenMeta> = {
+      nodeId: "shadow-node",
+      parentId: "shadows-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "shadow",
+        value: [
+          {
+            color: "{colors.black}",
+            offsetX: "{spacing.md}",
+            offsetY: "{spacing.md}",
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+            inset: false,
+          },
+        ],
+      },
+    };
+    const shadowsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "shadows-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "shadows" },
+    };
+    const nodes = createNodesMap([
+      colorToken,
+      colorsGroup,
+      spacingToken,
+      spacingGroup,
+      shadowToken,
+      shadowsGroup,
+    ]);
+    const resolved = resolveTokenValue(shadowToken, nodes);
+    expect(resolved).toEqual({
+      type: "shadow",
+      value: [
+        {
+          color: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+          offsetX: { value: 4, unit: "px" },
+          offsetY: { value: 4, unit: "px" },
+          blur: { value: 8, unit: "px" },
+          spread: { value: 0, unit: "px" },
+          inset: false,
+        },
+      ],
+    });
+  });
+
+  test("should resolve border with component aliases", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "color-node",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "gray",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors" },
+    };
+    const spacingToken: TreeNode<TokenMeta> = {
+      nodeId: "spacing-node",
+      parentId: "spacing-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "sm",
+        type: "dimension",
+        value: { value: 1, unit: "px" },
+      },
+    };
+    const spacingGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "spacing-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "spacing" },
+    };
+    const borderToken: TreeNode<TokenMeta> = {
+      nodeId: "border-node",
+      parentId: "borders-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "default",
+        type: "border",
+        value: {
+          color: "{colors.gray}",
+          width: "{spacing.sm}",
+          style: "solid",
+        },
+      },
+    };
+    const bordersGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "borders-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "borders" },
+    };
+    const nodes = createNodesMap([
+      colorToken,
+      colorsGroup,
+      spacingToken,
+      spacingGroup,
+      borderToken,
+      bordersGroup,
+    ]);
+    const resolved = resolveTokenValue(borderToken, nodes);
+    expect(resolved.type).toBe("border");
+    const borderValue = resolved.value as {
+      color: { colorSpace: string; components: number[] };
+      width: { value: number; unit: string };
+      style: string;
+    };
+    expect(borderValue.color).toEqual({
+      colorSpace: "srgb",
+      components: [0.5, 0.5, 0.5],
+    });
+    expect(borderValue.width).toEqual({ value: 1, unit: "px" });
+    expect(borderValue.style).toBe("solid");
+  });
+
+  test("should resolve typography with component aliases", () => {
+    const fontToken: TreeNode<TokenMeta> = {
+      nodeId: "font-node",
+      parentId: "fonts-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "body",
+        type: "fontFamily",
+        value: "sans-serif",
+      },
+    };
+    const fontsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "fonts-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "fonts" },
+    };
+    const spacingToken: TreeNode<TokenMeta> = {
+      nodeId: "spacing-node",
+      parentId: "spacing-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "md",
+        type: "dimension",
+        value: { value: 16, unit: "px" },
+      },
+    };
+    const spacingGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "spacing-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "spacing" },
+    };
+    const typographyToken: TreeNode<TokenMeta> = {
+      nodeId: "typography-node",
+      parentId: "typography-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "base",
+        type: "typography",
+        value: {
+          fontFamily: "{fonts.body}",
+          fontSize: "{spacing.md}",
+          fontWeight: 400,
+          lineHeight: 1.5,
+          letterSpacing: { value: 0, unit: "px" },
+        },
+      },
+    };
+    const typographyGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "typography-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "typography" },
+    };
+    const nodes = createNodesMap([
+      fontToken,
+      fontsGroup,
+      spacingToken,
+      spacingGroup,
+      typographyToken,
+      typographyGroup,
+    ]);
+    const resolved = resolveTokenValue(typographyToken, nodes);
+    expect(resolved.type).toBe("typography");
+    const typographyValue = resolved.value as {
+      fontFamily: string;
+      fontSize: { value: number; unit: string };
+      fontWeight: number;
+      lineHeight: number;
+      letterSpacing: { value: number; unit: string };
+    };
+    expect(typographyValue.fontFamily).toBe("sans-serif");
+    expect(typographyValue.fontSize).toEqual({ value: 16, unit: "px" });
+    expect(typographyValue.fontWeight).toBe(400);
+    expect(typographyValue.lineHeight).toBe(1.5);
+  });
+
+  test("should resolve transition with component aliases", () => {
+    const durationToken: TreeNode<TokenMeta> = {
+      nodeId: "duration-node",
+      parentId: "durations-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "quick",
+        type: "duration",
+        value: { value: 300, unit: "ms" },
+      },
+    };
+    const durationsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "durations-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "durations" },
+    };
+    const easingToken: TreeNode<TokenMeta> = {
+      nodeId: "easing-node",
+      parentId: "easing-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "ease",
+        type: "cubicBezier",
+        value: [0.25, 0.1, 0.25, 1],
+      },
+    };
+    const easingGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "easing-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "easing" },
+    };
+    const delayToken: TreeNode<TokenMeta> = {
+      nodeId: "delay-node",
+      parentId: "durations-group",
+      index: "a1",
+      meta: {
+        nodeType: "token",
+        name: "slowDelay",
+        type: "duration",
+        value: { value: 100, unit: "ms" },
+      },
+    };
+    const transitionToken: TreeNode<TokenMeta> = {
+      nodeId: "transition-node",
+      parentId: "transitions-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "smooth",
+        type: "transition",
+        value: {
+          duration: "{durations.quick}",
+          delay: "{durations.slowDelay}",
+          timingFunction: "{easing.ease}",
+        },
+      },
+    };
+    const transitionsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "transitions-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "transitions" },
+    };
+    const nodes = createNodesMap([
+      durationToken,
+      durationsGroup,
+      easingToken,
+      easingGroup,
+      delayToken,
+      transitionToken,
+      transitionsGroup,
+    ]);
+    expect(resolveTokenValue(transitionToken, nodes)).toEqual({
+      type: "transition",
+      value: {
+        duration: { value: 300, unit: "ms" },
+        delay: { value: 100, unit: "ms" },
+        timingFunction: [0.25, 0.1, 0.25, 1],
+      },
+    });
+  });
+
+  test("should resolve gradient with component aliases", () => {
+    const redToken: TreeNode<TokenMeta> = {
+      nodeId: "red-node",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "red",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const blueToken: TreeNode<TokenMeta> = {
+      nodeId: "blue-node",
+      parentId: "colors-group",
+      index: "a1",
+      meta: {
+        nodeType: "token",
+        name: "blue",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0, 0, 1] },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors" },
+    };
+    const gradientToken: TreeNode<TokenMeta> = {
+      nodeId: "gradient-node",
+      parentId: "gradients-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "redToBlue",
+        type: "gradient",
+        value: [
+          {
+            color: "{colors.red}",
+            position: 0,
+          },
+          {
+            color: "{colors.blue}",
+            position: 1,
+          },
+        ],
+      },
+    };
+    const gradientsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "gradients-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "gradients" },
+    };
+    const nodes = createNodesMap([
+      redToken,
+      blueToken,
+      colorsGroup,
+      gradientToken,
+      gradientsGroup,
+    ]);
+    const resolved = resolveTokenValue(gradientToken, nodes);
+    expect(resolved.type).toBe("gradient");
+    const gradientValue = resolved.value as Array<{
+      color: { colorSpace: string; components: number[] };
+      position: number;
+    }>;
+    expect(Array.isArray(gradientValue)).toBe(true);
+    expect(gradientValue[0].color).toEqual({
+      colorSpace: "srgb",
+      components: [1, 0, 0],
+    });
+    expect(gradientValue[1].color).toEqual({
+      colorSpace: "srgb",
+      components: [0, 0, 1],
+    });
+  });
 });
 
 describe("isAliasCircular", () => {
