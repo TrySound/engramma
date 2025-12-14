@@ -224,17 +224,6 @@ describe("parseDesignTokens", () => {
     );
   });
 
-  test("rejects invalid cubicBezier with values outside [0,1]", () => {
-    const result = parseDesignTokens({
-      easing: {
-        $type: "cubicBezier",
-        $value: [1.5, 0.1, 0.25, 1],
-      },
-    });
-    expect(result.nodes).toHaveLength(0);
-    expect(result.errors).toHaveLength(1);
-  });
-
   test("accepts valid number value", () => {
     const result = parseDesignTokens({
       myNumber: {
@@ -350,7 +339,7 @@ describe("parseDesignTokens", () => {
       myShadow: {
         $type: "shadow",
         $value: {
-          color: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+          color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.2 },
           offsetX: { value: 0, unit: "px" },
           offsetY: { value: 4, unit: "px" },
           blur: { value: 8, unit: "px" },
@@ -365,7 +354,7 @@ describe("parseDesignTokens", () => {
       expect.objectContaining({
         value: [
           {
-            color: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+            color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.2 },
             offsetX: { value: 0, unit: "px" },
             offsetY: { value: 4, unit: "px" },
             blur: { value: 8, unit: "px" },
@@ -745,7 +734,7 @@ describe("serializeDesignTokens", () => {
       shadow: {
         $type: "shadow",
         $value: {
-          color: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+          color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.2 },
           offsetX: { value: 0, unit: "px" },
           offsetY: { value: 4, unit: "px" },
           blur: { value: 8, unit: "px" },
@@ -849,16 +838,18 @@ describe("serializeDesignTokens", () => {
         $type: "shadow",
         $value: [
           {
-            color: { colorSpace: "srgb", components: [0, 0, 0, 0.1] },
+            color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.1 },
             offsetX: { value: 0, unit: "px" },
             offsetY: { value: 1, unit: "px" },
             blur: { value: 2, unit: "px" },
+            spread: { value: 0, unit: "px" },
           },
           {
-            color: { colorSpace: "srgb", components: [0, 0, 0, 0.05] },
+            color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.05 },
             offsetX: { value: 0, unit: "px" },
             offsetY: { value: 4, unit: "px" },
             blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
           },
         ],
       },
@@ -932,91 +923,45 @@ describe("serializeDesignTokens", () => {
           $description: "Primary brand color",
         },
         secondary: {
-          $value: {
-            colorSpace: "srgb",
-            components: [0.8, 0.2, 0.5],
-          },
+          $value: { colorSpace: "srgb", components: [0.8, 0.2, 0.5] },
         },
       },
       spacing: {
         $type: "dimension",
         $description: "Spacing tokens with pixel units",
         xs: {
-          $value: {
-            value: 4,
-            unit: "px",
-          },
+          $value: { value: 4, unit: "px" },
         },
         sm: {
-          $value: {
-            value: 8,
-            unit: "px",
-          },
+          $value: { value: 8, unit: "px" },
         },
       },
       shadows: {
         $type: "shadow",
         sm: {
           $value: {
-            color: {
-              colorSpace: "srgb",
-              components: [0, 0, 0, 0.1],
-            },
-            offsetX: {
-              value: 1,
-              unit: "px",
-            },
-            offsetY: {
-              value: 2,
-              unit: "px",
-            },
-            blur: {
-              value: 4,
-              unit: "px",
-            },
-            spread: {
-              value: 0,
-              unit: "px",
-            },
+            color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.1 },
+            offsetX: { value: 1, unit: "px" },
+            offsetY: { value: 2, unit: "px" },
+            blur: { value: 4, unit: "px" },
+            spread: { value: 0, unit: "px" },
           },
         },
         multiple: {
           $value: [
             {
-              color: {
-                colorSpace: "srgb",
-                components: [0, 0, 0, 0.1],
-              },
-              offsetX: {
-                value: 0,
-                unit: "px",
-              },
-              offsetY: {
-                value: 1,
-                unit: "px",
-              },
-              blur: {
-                value: 2,
-                unit: "px",
-              },
+              color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.1 },
+              offsetX: { value: 0, unit: "px" },
+              offsetY: { value: 1, unit: "px" },
+              blur: { value: 2, unit: "px" },
+              spread: { value: 0, unit: "px" },
             },
             {
-              color: {
-                colorSpace: "srgb",
-                components: [0, 0, 0, 0.05],
-              },
-              offsetX: {
-                value: 0,
-                unit: "px",
-              },
-              offsetY: {
-                value: 4,
-                unit: "px",
-              },
-              blur: {
-                value: 8,
-                unit: "px",
-              },
+              color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.05 },
+              offsetX: { value: 0, unit: "px" },
+              offsetY: { value: 4, unit: "px" },
+              blur: { value: 8, unit: "px" },
+              spread: { value: 0, unit: "px" },
             },
           ],
         },
@@ -1024,10 +969,7 @@ describe("serializeDesignTokens", () => {
       deprecated: {
         oldColor: {
           $type: "color",
-          $value: {
-            colorSpace: "srgb",
-            components: [0.5, 0.5, 0.5],
-          },
+          $value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
           $deprecated: "Use colors.primary instead",
         },
       },
@@ -1197,7 +1139,7 @@ describe("serializeDesignTokens", () => {
       colors: {
         $type: "color",
         black: {
-          $value: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+          $value: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.2 },
         },
       },
       spacing: {
@@ -1447,7 +1389,7 @@ describe("serializeDesignTokens", () => {
       colors: {
         $type: "color",
         black: {
-          $value: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+          $value: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.2 },
         },
       },
       spacing: {

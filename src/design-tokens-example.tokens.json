@@ -439,6 +439,10 @@
           "value": 4,
           "unit": "px"
         },
+        "spread": {
+          "value": 0,
+          "unit": "px"
+        },
         "inset": true
       }
     },
@@ -461,6 +465,10 @@
           "blur": {
             "value": 2,
             "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
           }
         },
         {
@@ -479,6 +487,10 @@
           },
           "blur": {
             "value": 8,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
             "unit": "px"
           }
         }

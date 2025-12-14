@@ -207,12 +207,13 @@ describe("generateScssVariables", () => {
           offsetX: { value: 0, unit: "px" },
           offsetY: { value: 2, unit: "px" },
           blur: { value: 4, unit: "px" },
+          spread: { value: 0, unit: "px" },
           inset: true,
         },
       },
     });
     const scss = generateScssVariables(nodesToMap(parsed.nodes));
-    expect(scss).toContain("inset 0px 2px 4px");
+    expect(scss).toContain("inset 0px 2px 4px 0px");
   });
 
   test("generates SCSS variables for multiple shadows", () => {
@@ -225,12 +226,14 @@ describe("generateScssVariables", () => {
             offsetX: { value: 0, unit: "px" },
             offsetY: { value: 1, unit: "px" },
             blur: { value: 2, unit: "px" },
+            spread: { value: 0, unit: "px" },
           },
           {
             color: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.05 },
             offsetX: { value: 0, unit: "px" },
             offsetY: { value: 4, unit: "px" },
             blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
           },
         ],
       },

@@ -80,6 +80,7 @@
               offsetX: { value: 0, unit: "px" },
               offsetY: { value: 4, unit: "px" },
               blur: { value: 6, unit: "px" },
+              spread: { value: 0, unit: "px" },
             },
           ],
         };

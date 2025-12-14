@@ -171,13 +171,11 @@ const resolveRawValue = <
             nodes,
             resolvingStack,
           ).value,
-          spread: shadow.spread
-            ? resolveRawValue(
-                { type: "dimension", value: shadow.spread },
-                nodes,
-                resolvingStack,
-              ).value
-            : undefined,
+          spread: resolveRawValue(
+            { type: "dimension", value: shadow.spread },
+            nodes,
+            resolvingStack,
+          ).value,
           inset: shadow.inset,
         })),
       } satisfies Value as Output;

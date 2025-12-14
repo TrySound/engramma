@@ -1,77 +1,50 @@
 import { z } from "zod";
+import {
+  colorValue,
+  cubicBezierValue,
+  dimensionValue,
+  durationValue,
+  fontFamilyValue,
+  strokeStyleValue,
+} from "./dtcg.schema";
 
-// Component can be a number or the 'none' keyword
-const ComponentSchema = z.union([z.number(), z.literal("none")]);
-
-// Supported color spaces according to Design Tokens spec
-const SupportedColorSpaces = z.enum([
-  "srgb",
-  "srgb-linear",
-  "hsl",
-  "hwb",
-  "lab",
-  "lch",
-  "oklab",
-  "oklch",
-  "display-p3",
-  "a98-rgb",
-  "prophoto-rgb",
-  "rec2020",
-  "xyz-d65",
-  "xyz-d50",
-]);
-
-const ColorValueSchema = z.object({
-  colorSpace: SupportedColorSpaces,
-  components: z.array(ComponentSchema),
-  alpha: z.number().min(0).max(1).optional(),
-  hex: z.string().optional(),
-});
-
-export type ColorValue = z.infer<typeof ColorValueSchema>;
+export type {
+  ColorValue,
+  DimensionValue,
+  DurationValue,
+  CubicBezierValue,
+  FontFamilyValue,
+  StrokeStyleValue,
+} from "./dtcg.schema";
 
 const ColorSchema = z.object({
   type: z.literal("color"),
-  value: ColorValueSchema,
+  value: colorValue,
 });
 
 const RawColorSchema = z.object({
   type: z.literal("color"),
-  value: z.union([ColorValueSchema, z.string()]),
+  value: z.union([colorValue, z.string()]),
 });
-
-const DimensionValueSchema = z.object({
-  value: z.number(),
-  unit: z.enum(["px", "rem"]),
-});
-
-export type DimensionValue = z.infer<typeof DimensionValueSchema>;
 
 const DimensionSchema = z.object({
   type: z.literal("dimension"),
-  value: DimensionValueSchema,
+  value: dimensionValue,
 });
 
 const RawDimensionSchema = z.object({
   type: z.literal("dimension"),
-  value: z.union([DimensionValueSchema, z.string()]),
+  value: z.union([dimensionValue, z.string()]),
 });
-
-const DurationValueSchema = z.object({
-  value: z.number(),
-  unit: z.enum(["ms", "s"]),
-});
-
-export type DurationValue = z.infer<typeof DurationValueSchema>;
 
 const DurationSchema = z.object({
   type: z.literal("duration"),
-  value: DurationValueSchema,
+  value: durationValue,
 });
 
 const RawDurationSchema = z.object({
   type: z.literal("duration"),
-  value: z.union([DurationValueSchema, z.string()]),
+  value: z.union([durationValue, z.string()]),
 });
 
 const NumberSchema = z.object({
@@ -84,37 +57,24 @@ const RawNumberSchema = z.object({
   value: z.union([z.number(), z.string()]),
 });
 
-const CubicBezierValueSchema = z
-  .tuple([z.number(), z.number(), z.number(), z.number()])
-  .refine(
-    ([x1, , x2]) => x1 >= 0 && x1 <= 1 && x2 >= 0 && x2 <= 1,
-    "Cubic bezier x-coordinates must be between 0 and 1",
-  );
-
-export type CubicBezierValue = z.infer<typeof CubicBezierValueSchema>;
-
 const CubicBezierSchema = z.object({
   type: z.literal("cubicBezier"),
-  value: CubicBezierValueSchema,
+  value: cubicBezierValue,
 });
 
 const RawCubicBezierSchema = z.object({
   type: z.literal("cubicBezier"),
-  value: z.union([CubicBezierValueSchema, z.string()]),
+  value: z.union([cubicBezierValue, z.string()]),
 });
-
-const FontFamilyValueSchema = z.union([z.string(), z.array(z.string())]);
-
-export type FontFamilyValue = z.infer<typeof FontFamilyValueSchema>;
 
 const FontFamilySchema = z.object({
   type: z.literal("fontFamily"),
-  value: FontFamilyValueSchema,
+  value: fontFamilyValue,
 });
 
 const RawFontFamilySchema = z.object({
   type: z.literal("fontFamily"),
-  value: z.union([FontFamilyValueSchema, z.string()]),
+  value: z.union([fontFamilyValue, z.string()]),
 });
 
 const FontWeightValueSchema = z.union([z.number(), z.string()]);
@@ -129,41 +89,20 @@ const RawFontWeightSchema = z.object({
   value: z.union([FontWeightValueSchema, z.string()]),
 });
 
-const StrokeStyleValueSchema = z.union([
-  z.literal("solid"),
-  z.literal("dashed"),
-  z.literal("dotted"),
-  z.literal("double"),
-  z.literal("groove"),
-  z.literal("ridge"),
-  z.literal("outset"),
-  z.literal("inset"),
-  z.object({
-    dashArray: z.array(DimensionValueSchema),
-    lineCap: z.union([
-      z.literal("round"),
-      z.literal("butt"),
-      z.literal("square"),
-    ]),
-  }),
-]);
-
-export type StrokeStyleValue = z.infer<typeof StrokeStyleValueSchema>;
-
 const StrokeStyleSchema = z.object({
   type: z.literal("strokeStyle"),
-  value: StrokeStyleValueSchema,
+  value: strokeStyleValue,
 });
 
 const RawStrokeStyleSchema = z.object({
   type: z.literal("strokeStyle"),
-  value: z.union([StrokeStyleValueSchema, z.string()]),
+  value: z.union([strokeStyleValue, z.string()]),
 });
 
 const TransitionValueSchema = z.object({
-  duration: DurationValueSchema,
-  delay: DurationValueSchema,
-  timingFunction: CubicBezierValueSchema,
+  duration: durationValue,
+  delay: durationValue,
+  timingFunction: cubicBezierValue,
 });
 
 export type TransitionValue = z.infer<typeof TransitionValueSchema>;
@@ -177,20 +116,20 @@ const RawTransitionSchema = z.object({
   type: z.literal("transition"),
   value: z.union([
     z.object({
-      duration: z.union([DurationValueSchema, z.string()]),
-      delay: z.union([DurationValueSchema, z.string()]),
-      timingFunction: z.union([CubicBezierValueSchema, z.string()]),
+      duration: z.union([durationValue, z.string()]),
+      delay: z.union([durationValue, z.string()]),
+      timingFunction: z.union([cubicBezierValue, z.string()]),
     }),
     z.string(), // token reference
   ]),
 });
 
 export const ShadowItemSchema = z.object({
-  color: ColorValueSchema,
-  offsetX: DimensionValueSchema,
-  offsetY: DimensionValueSchema,
-  blur: DimensionValueSchema,
-  spread: DimensionValueSchema.optional(),
+  color: colorValue,
+  offsetX: dimensionValue,
+  offsetY: dimensionValue,
+  blur: dimensionValue,
+  spread: dimensionValue,
   inset: z.boolean().optional(),
 });
 
@@ -206,11 +145,11 @@ const ShadowSchema = z.object({
 });
 
 const RawShadowItemSchema = z.object({
-  color: z.union([ColorValueSchema, z.string()]),
-  offsetX: z.union([DimensionValueSchema, z.string()]),
-  offsetY: z.union([DimensionValueSchema, z.string()]),
-  blur: z.union([DimensionValueSchema, z.string()]),
-  spread: z.union([DimensionValueSchema, z.string()]).optional(),
+  color: z.union([colorValue, z.string()]),
+  offsetX: z.union([dimensionValue, z.string()]),
+  offsetY: z.union([dimensionValue, z.string()]),
+  blur: z.union([dimensionValue, z.string()]),
+  spread: z.union([dimensionValue, z.string()]),
   inset: z.boolean().optional(),
 });
 
@@ -223,9 +162,9 @@ const RawShadowSchema = z.object({
 });
 
 const BorderValueSchema = z.object({
-  color: ColorValueSchema,
-  width: DimensionValueSchema,
-  style: StrokeStyleValueSchema,
+  color: colorValue,
+  width: dimensionValue,
+  style: strokeStyleValue,
 });
 
 export type BorderValue = z.infer<typeof BorderValueSchema>;
@@ -239,19 +178,19 @@ const RawBorderSchema = z.object({
   type: z.literal("border"),
   value: z.union([
     z.object({
-      color: z.union([ColorValueSchema, z.string()]),
-      width: z.union([DimensionValueSchema, z.string()]),
-      style: z.union([StrokeStyleValueSchema, z.string()]),
+      color: z.union([colorValue, z.string()]),
+      width: z.union([dimensionValue, z.string()]),
+      style: z.union([strokeStyleValue, z.string()]),
     }),
     z.string(), // token reference
   ]),
 });
 
 const TypographyValueSchema = z.object({
-  fontFamily: FontFamilyValueSchema,
-  fontSize: DimensionValueSchema,
+  fontFamily: fontFamilyValue,
+  fontSize: dimensionValue,
   fontWeight: FontWeightValueSchema,
-  letterSpacing: DimensionValueSchema,
+  letterSpacing: dimensionValue,
   lineHeight: z.number(),
 });
 
@@ -266,10 +205,10 @@ const RawTypographySchema = z.object({
   type: z.literal("typography"),
   value: z.union([
     z.object({
-      fontFamily: z.union([FontFamilyValueSchema, z.string()]),
-      fontSize: z.union([DimensionValueSchema, z.string()]),
+      fontFamily: z.union([fontFamilyValue, z.string()]),
+      fontSize: z.union([dimensionValue, z.string()]),
       fontWeight: z.union([FontWeightValueSchema, z.string()]),
-      letterSpacing: z.union([DimensionValueSchema, z.string()]),
+      letterSpacing: z.union([dimensionValue, z.string()]),
       lineHeight: z.union([z.number(), z.string()]),
     }),
     z.string(), // token reference
@@ -280,7 +219,7 @@ const GradientPosition = z.number().min(0).max(1);
 
 const GradientValueSchema = z.array(
   z.object({
-    color: ColorValueSchema,
+    color: colorValue,
     position: GradientPosition,
   }),
 );
@@ -297,7 +236,7 @@ const RawGradientSchema = z.object({
   value: z.union([
     z.array(
       z.object({
-        color: z.union([ColorValueSchema, z.string()]),
+        color: z.union([colorValue, z.string()]),
         position: GradientPosition,
       }),
     ),
