@@ -68,7 +68,7 @@ describe("parseDesignTokens", () => {
     });
     expect(result.nodes).toHaveLength(0);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain("Invalid token name");
+    expect(result.errors[0].message).toContain('Invalid name "$invalid"');
   });
 
   test("excludes token with forbidden characters from tree", () => {
@@ -98,7 +98,8 @@ describe("parseDesignTokens", () => {
   test("excludes token without determinable type", () => {
     const result = parseDesignTokens({
       noType: {
-        $value: "something",
+        // valid number token value
+        $value: 5,
       },
     });
     expect(result.nodes).toHaveLength(0);
@@ -983,16 +984,16 @@ describe("serializeDesignTokens", () => {
 
   test("parses token with $value containing reference", () => {
     const result = parseDesignTokens({
-      colors: {
-        $type: "color",
-        primary: {
-          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
-        },
-      },
       semantic: {
         brand: {
           $type: "color",
           $value: "{colors.primary}",
+        },
+      },
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
         },
       },
     });
@@ -1013,15 +1014,15 @@ describe("serializeDesignTokens", () => {
 
   test("allows token with $value reference but no $type", () => {
     const result = parseDesignTokens({
+      semantic: {
+        brand: {
+          $value: "{colors.primary}",
+        },
+      },
       colors: {
         $type: "color",
         primary: {
           $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
-        },
-      },
-      semantic: {
-        brand: {
-          $value: "{colors.primary}",
         },
       },
     });
@@ -1034,24 +1035,56 @@ describe("serializeDesignTokens", () => {
         nodeType: "token",
         name: "brand",
         value: "{colors.primary}",
+        type: "color", // Type should be resolved from referenced token
       }),
     );
-    // Type should not be present when not explicitly set
-    expect(brandToken?.meta?.type).toBeUndefined();
   });
 
-  test("serializes token with $value containing reference", () => {
-    const input = {
+  test("resolves type recursively for chained token aliases", () => {
+    const result = parseDesignTokens({
+      aliases: {
+        mainBrand: {
+          $value: "{semantic.brand}",
+        },
+      },
+      semantic: {
+        brand: {
+          $value: "{colors.primary}",
+        },
+      },
       colors: {
         $type: "color",
         primary: {
           $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
         },
       },
+    });
+    expect(result.errors).toHaveLength(0);
+
+    const brandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
+    );
+    expect(brandToken?.meta?.type).toBe("color");
+
+    const mainBrandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "mainBrand",
+    );
+    // mainBrand should resolve type through the chain: mainBrand -> brand -> colors.primary
+    expect(mainBrandToken?.meta?.type).toBe("color");
+  });
+
+  test("serializes token with $value containing reference", () => {
+    const input = {
       semantic: {
         brand: {
           $type: "color",
           $value: "{colors.primary}",
+        },
+      },
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
         },
       },
     };
@@ -1062,13 +1095,6 @@ describe("serializeDesignTokens", () => {
 
   test("round-trip preserves $value with reference", () => {
     const input = {
-      base: {
-        $type: "color",
-        primary: {
-          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
-          $description: "Base primary color",
-        },
-      },
       semantic: {
         $type: "color",
         success: {
@@ -1078,6 +1104,13 @@ describe("serializeDesignTokens", () => {
         error: {
           $value: { colorSpace: "srgb", components: [1, 0, 0] },
           $description: "Error state color",
+        },
+      },
+      base: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
+          $description: "Base primary color",
         },
       },
     };

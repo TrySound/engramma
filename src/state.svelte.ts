@@ -17,7 +17,7 @@ export type GroupMeta = {
 export type TokenMeta = {
   nodeType: "token";
   name: string;
-  type?: Value["type"];
+  type: Value["type"];
   value: RawValue["value"];
   description?: string;
   deprecated?: boolean | string;

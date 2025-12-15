@@ -638,7 +638,7 @@ describe("resolveTokenValue", () => {
       meta: {
         nodeType: "token",
         name: "brand",
-        // No type specified
+        type: "color",
         value: "{colors.primary}",
       },
     };
@@ -674,7 +674,7 @@ describe("resolveTokenValue", () => {
       meta: {
         nodeType: "token",
         name: "spacing",
-        // No type specified
+        type: "dimension",
         value: "{base.size}",
       },
     };
@@ -710,7 +710,7 @@ describe("resolveTokenValue", () => {
       meta: {
         nodeType: "token",
         name: "primary",
-        // No type specified
+        type: "color",
         value: "{base.original}",
       },
     };
@@ -727,7 +727,7 @@ describe("resolveTokenValue", () => {
       meta: {
         nodeType: "token",
         name: "brand",
-        // No type specified
+        type: "color",
         value: "{semantic.primary}",
       },
     };
