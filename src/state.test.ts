@@ -210,7 +210,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        value: "{colors.primary}",
+        value: { ref: "node1" },
       },
     };
     const colorsGroup: TreeNode<TreeNodeMeta> = {
@@ -258,7 +258,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "highlight",
         type: "color",
-        value: "{colors.secondary.accent}",
+        value: { ref: "color-node" },
       },
     };
     const nodes = createNodesMap([colorToken, nestedGroup, colorsGroup]);
@@ -294,7 +294,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "spacing",
         type: "dimension",
-        value: "{base.size}",
+        value: { ref: "node1" },
       },
     };
     const nodes = createNodesMap([baseToken, baseGroup]);
@@ -330,7 +330,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "primary",
         type: "color",
-        value: "{base.original}",
+        value: { ref: "node1" },
       },
     };
     const semanticGroup: TreeNode<TreeNodeMeta> = {
@@ -347,7 +347,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        value: "{semantic.primary}",
+        value: { ref: "intermediate-node" },
       },
     };
     const nodes = createNodesMap([
@@ -371,7 +371,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        value: "{group2.tokenB}",
+        value: { ref: "node2" },
       },
     };
     const token2: TreeNode<TokenMeta> = {
@@ -382,7 +382,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        value: "{group1.tokenA}",
+        value: { ref: "node1" },
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -406,7 +406,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "test",
         type: "color",
-        value: "{group1.tokenA}",
+        value: { ref: "node1" },
       },
     };
     expect(() => resolveTokenValue(testToken, nodes)).toThrow(
@@ -423,7 +423,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "circular",
         type: "color",
-        value: "{group1.circular}",
+        value: { ref: "node1" },
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -456,47 +456,13 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        value: "{colors.nonexistent}",
+        value: { ref: "not-existing" },
       },
     };
     const nodes = createNodesMap([group]);
     expect(() => resolveTokenValue(aliasToken, nodes)).toThrow(
-      'Final token node not found while resolving "{colors.nonexistent}"',
+      'Token node not found while resolving nodeId "not-existing"',
     );
-  });
-
-  test("should throw error when intermediate path not found", () => {
-    const token: TreeNode<TokenMeta> = {
-      nodeId: "node1",
-      parentId: undefined,
-      index: "a0",
-      meta: {
-        nodeType: "token",
-        name: "test",
-        type: "color",
-        value: "{colors.nested.deep}",
-      },
-    };
-    const nodes = createNodesMap([]);
-    expect(() => resolveTokenValue(token, nodes)).toThrow(
-      'Final token node not found while resolving "{colors.nested.deep}"',
-    );
-  });
-
-  test("should throw error for invalid reference format with empty braces", () => {
-    const token: TreeNode<TokenMeta> = {
-      nodeId: "node1",
-      parentId: undefined,
-      index: "a0",
-      meta: {
-        nodeType: "token",
-        name: "test",
-        type: "color",
-        value: "{}",
-      },
-    };
-    const nodes = createNodesMap([]);
-    expect(() => resolveTokenValue(token, nodes)).toThrowError();
   });
 
   test("should resolve token with multiple nesting levels correctly", () => {
@@ -537,7 +503,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "alias",
         type: "number",
-        value: "{root.level1.level2.final}",
+        value: { ref: "deep-node" },
       },
     };
     const nodes = createNodesMap([
@@ -574,7 +540,7 @@ describe("resolveTokenValue", () => {
     ];
     for (const testCase of testCases) {
       const sourceToken: TreeNode<TokenMeta> = {
-        nodeId: "source-node",
+        nodeId: testCase.name,
         parentId: "base-group",
         index: "a0",
         meta: { nodeType: "token", ...testCase },
@@ -596,7 +562,7 @@ describe("resolveTokenValue", () => {
           nodeType: "token",
           name: "alias",
           type: testCase.type,
-          value: `{base.${testCase.name}}`,
+          value: { ref: testCase.name },
         },
       };
       const nodes = createNodesMap([sourceToken, baseGroup]);
@@ -634,7 +600,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        value: "{colors.primary}",
+        value: { ref: "node1" },
       },
     };
     const nodes = createNodesMap([colorToken, colorsGroup]);
@@ -670,7 +636,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "spacing",
         type: "dimension",
-        value: "{base.size}",
+        value: { ref: "base-node" },
       },
     };
     const nodes = createNodesMap([baseToken, baseGroup]);
@@ -706,7 +672,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "primary",
         type: "color",
-        value: "{base.original}",
+        value: { ref: "node1" },
       },
     };
     const semanticGroup: TreeNode<TreeNodeMeta> = {
@@ -723,7 +689,7 @@ describe("resolveTokenValue", () => {
         nodeType: "token",
         name: "brand",
         type: "color",
-        value: "{semantic.primary}",
+        value: { ref: "intermediate-node" },
       },
     };
     const nodes = createNodesMap([
@@ -802,9 +768,9 @@ describe("resolveTokenValue", () => {
         type: "shadow",
         value: [
           {
-            color: "{colors.black}",
-            offsetX: "{spacing.md}",
-            offsetY: "{spacing.md}",
+            color: { ref: "color-node" },
+            offsetX: { ref: "spacing-node" },
+            offsetY: { ref: "spacing-node" },
             blur: { value: 8, unit: "px" },
             spread: { value: 0, unit: "px" },
             inset: false,
@@ -886,8 +852,8 @@ describe("resolveTokenValue", () => {
         name: "default",
         type: "border",
         value: {
-          color: "{colors.gray}",
-          width: "{spacing.sm}",
+          color: { ref: "color-node" },
+          width: { ref: "spacing-node" },
           style: "solid",
         },
       },
@@ -965,8 +931,8 @@ describe("resolveTokenValue", () => {
         name: "base",
         type: "typography",
         value: {
-          fontFamily: "{fonts.body}",
-          fontSize: "{spacing.md}",
+          fontFamily: { ref: "font-node" },
+          fontSize: { ref: "spacing-node" },
           fontWeight: 400,
           lineHeight: 1.5,
           letterSpacing: { value: 0, unit: "px" },
@@ -1057,9 +1023,9 @@ describe("resolveTokenValue", () => {
         name: "smooth",
         type: "transition",
         value: {
-          duration: "{durations.quick}",
-          delay: "{durations.slowDelay}",
-          timingFunction: "{easing.ease}",
+          duration: { ref: "duration-node" },
+          delay: { ref: "delay-node" },
+          timingFunction: { ref: "easing-node" },
         },
       },
     };
@@ -1127,11 +1093,11 @@ describe("resolveTokenValue", () => {
         type: "gradient",
         value: [
           {
-            color: "{colors.red}",
+            color: { ref: "red-node" },
             position: 0,
           },
           {
-            color: "{colors.blue}",
+            color: { ref: "blue-node" },
             position: 1,
           },
         ],
@@ -1227,7 +1193,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "circular",
         type: "color",
-        value: "{group1.circular}",
+        value: { ref: "token-node" },
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -1249,7 +1215,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        value: "{group2.tokenB}",
+        value: { ref: "token-b" },
       },
     };
     const tokenB: TreeNode<TokenMeta> = {
@@ -1260,7 +1226,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        value: "{group1.tokenA}",
+        value: { ref: "token-a" },
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -1288,7 +1254,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        value: "{group2.tokenB}",
+        value: { ref: "token-b" },
       },
     };
     const tokenB: TreeNode<TokenMeta> = {
@@ -1299,7 +1265,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        value: "{group3.tokenC}",
+        value: { ref: "token-c" },
       },
     };
     const tokenC: TreeNode<TokenMeta> = {
@@ -1310,7 +1276,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenC",
         type: "color",
-        value: "{group1.tokenA}",
+        value: { ref: "token-a" },
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -1362,7 +1328,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        value: "{group1.tokenA}",
+        value: { ref: "token-a" },
       },
     };
     const tokenC: TreeNode<TokenMeta> = {
@@ -1458,7 +1424,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenA",
         type: "color",
-        value: "{group2.tokenB}",
+        value: { ref: "token-b" },
       },
     };
     const tokenB: TreeNode<TokenMeta> = {
@@ -1469,7 +1435,7 @@ describe("isAliasCircular", () => {
         nodeType: "token",
         name: "tokenB",
         type: "color",
-        value: "{group1.nested.tokenA}",
+        value: { ref: "token-a" },
       },
     };
     const group1: TreeNode<TreeNodeMeta> = {
@@ -1498,5 +1464,95 @@ describe("isAliasCircular", () => {
       group2,
     ]);
     expect(isAliasCircular("token-a", "token-b", nodes)).toBe(true);
+  });
+
+  test("should detect circular reference requiring multiple traversals", () => {
+    // Setup: token-a -> token-b -> token-c
+    // We want to check if setting token-a to reference token-d would be safe
+    // where token-d -> token-e -> token-b (which eventually leads back to token-a)
+    //
+    // The traversal path is: token-d -> token-e -> token-b -> token-c
+    // We need to check if "token-a" appears in that chain
+    //
+    // Actually, let's set it up so:
+    // token-b -> token-c -> token-a (exists)
+    // Check: Would setting token-a to reference token-d cause a cycle?
+    // where token-d -> token-e -> token-b
+    // The traversal is: token-d -> token-e -> token-b -> token-c -> token-a (found!)
+
+    const tokenA: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const tokenB: TreeNode<TokenMeta> = {
+      nodeId: "token-b",
+      parentId: "group1",
+      index: "a1",
+      meta: {
+        nodeType: "token",
+        name: "tokenB",
+        type: "color",
+        value: { ref: "token-c" },
+      },
+    };
+    const tokenC: TreeNode<TokenMeta> = {
+      nodeId: "token-c",
+      parentId: "group1",
+      index: "a2",
+      meta: {
+        nodeType: "token",
+        name: "tokenC",
+        type: "color",
+        value: { ref: "token-a" },
+      },
+    };
+    const tokenD: TreeNode<TokenMeta> = {
+      nodeId: "token-d",
+      parentId: "group1",
+      index: "a3",
+      meta: {
+        nodeType: "token",
+        name: "tokenD",
+        type: "color",
+        value: { ref: "token-e" },
+      },
+    };
+    const tokenE: TreeNode<TokenMeta> = {
+      nodeId: "token-e",
+      parentId: "group1",
+      index: "a4",
+      meta: {
+        nodeType: "token",
+        name: "tokenE",
+        type: "color",
+        value: { ref: "token-b" },
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const nodes = createNodesMap([
+      tokenA,
+      tokenB,
+      tokenC,
+      tokenD,
+      tokenE,
+      group1,
+    ]);
+
+    // Check if setting token-a to reference token-d would create a cycle
+    // Path to check: token-d -> token-e -> token-b -> token-c -> token-a (FOUND!)
+    // This requires traversing 4 references to detect the cycle
+    expect(isAliasCircular("token-a", "token-d", nodes)).toBe(true);
   });
 });

@@ -2,13 +2,23 @@ import { prettifyError } from "zod";
 import { generateKeyBetween } from "fractional-indexing";
 import { compareTreeNodes, type TreeNode } from "./store";
 import type { GroupMeta, TokenMeta } from "./state.svelte";
-import { RawValueSchema, type RawValueWithReference } from "./schema";
+import {
+  type NodeRef,
+  type RawValue,
+  RawValueSchema,
+  type RawValueWithReference,
+  isNodeRef,
+} from "./schema";
 import {
   nameSchema,
   referenceSchema,
   tokenSchema,
   groupSchema,
   shadowValue,
+  transitionValue,
+  borderValue,
+  typographyValue,
+  gradientValue,
   type TokenType,
   type Group,
   type Token,
@@ -26,6 +36,94 @@ type IntermediaryNode = {
   payload: Token | Group;
 };
 
+const getPathFromTokenRef = (tokenRef: string) => tokenRef.replace(/[{}]/g, "");
+
+const getTokenRefOrValue = <Value extends RawValue["value"]>(
+  value: NodeRef | Value,
+  pathByNodeId: Map<string, string>,
+): string | Value => {
+  if (isNodeRef(value)) {
+    const path = pathByNodeId.get(value.ref);
+    if (!path) {
+      throw Error(`Alias token for ${value.ref} not found`);
+    }
+    return `{${path}}`;
+  }
+  return value;
+};
+
+// Helper to convert TokenRef back to DTCG reference format
+// pathByNodeId maps node IDs to their DTCG paths
+const serializeTokenValue = (
+  token: RawValueWithReference,
+  pathByNodeId: Map<string, string>,
+): Token["$value"] => {
+  if (isNodeRef(token.value)) {
+    const path = pathByNodeId.get(token.value.ref);
+    if (!path) {
+      throw Error(`Alias token for ${token.value.ref} not found`);
+    }
+    return `{${path}}`;
+  }
+  switch (token.type) {
+    case "transition": {
+      const { value } = token;
+      return {
+        duration: getTokenRefOrValue(value.duration, pathByNodeId),
+        delay: getTokenRefOrValue(value.delay, pathByNodeId),
+        timingFunction: getTokenRefOrValue(value.timingFunction, pathByNodeId),
+      };
+    }
+    case "border": {
+      const { value } = token;
+      return {
+        color: getTokenRefOrValue(value.color, pathByNodeId),
+        width: getTokenRefOrValue(value.width, pathByNodeId),
+        style: getTokenRefOrValue(value.style, pathByNodeId),
+      };
+    }
+    case "shadow": {
+      const shadows = token.value.map((shadow) => ({
+        color: getTokenRefOrValue(shadow.color, pathByNodeId),
+        offsetX: getTokenRefOrValue(shadow.offsetX, pathByNodeId),
+        offsetY: getTokenRefOrValue(shadow.offsetY, pathByNodeId),
+        blur: getTokenRefOrValue(shadow.blur, pathByNodeId),
+        spread: getTokenRefOrValue(shadow.spread, pathByNodeId),
+        inset: shadow.inset,
+      }));
+      // serialize as shadow object when only one item in shadows array
+      return shadows.length === 1 ? shadows[0] : shadows;
+    }
+    case "typography": {
+      const { value } = token;
+      return {
+        fontFamily: getTokenRefOrValue(value.fontFamily, pathByNodeId),
+        fontSize: getTokenRefOrValue(value.fontSize, pathByNodeId),
+        fontWeight: getTokenRefOrValue(value.fontWeight, pathByNodeId),
+        letterSpacing: getTokenRefOrValue(value.letterSpacing, pathByNodeId),
+        lineHeight: getTokenRefOrValue(value.lineHeight, pathByNodeId),
+      };
+    }
+    case "gradient": {
+      return token.value.map((shadow) => ({
+        color: getTokenRefOrValue(shadow.color, pathByNodeId),
+        position: shadow.position,
+      }));
+    }
+    default:
+      token.type satisfies
+        | "number"
+        | "color"
+        | "dimension"
+        | "fontFamily"
+        | "fontWeight"
+        | "duration"
+        | "cubicBezier"
+        | "strokeStyle";
+      return token.value;
+  }
+};
+
 export type ParseResult = {
   nodes: TreeNode<TreeNodeMeta>[];
   errors: Array<{ path: string; message: string }>;
@@ -39,7 +137,7 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 const isTokenObject = (v: unknown): v is Record<string, unknown> =>
   isObject(v) && "$value" in v;
 
-export const isTokenReference = (value: unknown): value is string => {
+const isTokenReference = (value: unknown): value is string => {
   return referenceSchema.safeParse(value).success;
 };
 
@@ -48,6 +146,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
   const nodes: TreeNode<TreeNodeMeta>[] = [];
   const collectedErrors: Array<{ path: string; message: string }> = [];
   const lastChildIndexPerParent = new Map<string | undefined, string>();
+  const pathToNodeId = new Map<string, string>(); // Map DTCG paths to node IDs
 
   if (!isObject(input)) {
     return { nodes, errors: collectedErrors };
@@ -80,13 +179,16 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     }
     // pass through inherited type from root group to token
     inheritedType = payload.data.$type ?? inheritedType;
-    intermediaryNodes.set(path.join("."), {
+    const nodeId = crypto.randomUUID();
+    const pathStr = path.join(".");
+    intermediaryNodes.set(pathStr, {
       parentPath: parentPath?.join("."),
       name,
-      nodeId: crypto.randomUUID(),
+      nodeId,
       type: inheritedType,
       payload: payload.data,
     });
+    pathToNodeId.set(pathStr, nodeId);
     // skip traversing children on token
     if (!("$value" in payload.data) && isObject(data)) {
       for (const [name, value] of Object.entries(data)) {
@@ -131,47 +233,116 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     }
   };
 
-  const resolveTokenTypeAndValue = (
+  const getNodeRefOrValue = <Value extends RawValue["value"]>(
+    value: string | Value,
+  ): NodeRef | Value => {
+    if (isTokenReference(value)) {
+      const node = intermediaryNodes.get(getPathFromTokenRef(value));
+      if (!node) {
+        throw Error(`Node ${value} not found`);
+      }
+      const nodeRef = { ref: node.nodeId };
+      return nodeRef;
+    }
+    return value;
+  };
+
+  const parseTokenTypeAndValue = (
     path: string,
-    intermediaryNode: IntermediaryNode,
+    intermediaryType: undefined | TokenType,
     token: Token,
   ): undefined | RawValueWithReference => {
-    // Check if value is a token reference (curly brace syntax in $value)
+    // convert token reference to node reference format
     if (isTokenReference(token.$value)) {
-      const type =
-        token.$type ?? resolveAliasType(path) ?? intermediaryNode.type;
-      if (!type) {
+      const type = token.$type ?? resolveAliasType(path) ?? intermediaryType;
+      const node = intermediaryNodes.get(getPathFromTokenRef(token.$value));
+      if (!type || !node) {
         return;
       }
-      return { type, value: token.$value };
+      const nodeRef = { ref: node.nodeId };
+      return { type, value: nodeRef };
     }
-    let value = token.$value;
-    if (!intermediaryNode.type) {
-      return;
-    }
-    // Convert single shadow objects to arrays for internal storage
-    if (intermediaryNode.type === "shadow") {
-      const parsed = shadowValue.safeParse(value);
-      if (
-        parsed.success &&
-        !Array.isArray(parsed.data) &&
-        typeof parsed.data !== "string"
-      ) {
-        value = [parsed.data];
+    switch (intermediaryType) {
+      // resolve composite tokens
+      case "transition": {
+        const value = transitionValue.parse(token.$value);
+        return {
+          type: "transition",
+          value: {
+            duration: getNodeRefOrValue(value.duration),
+            delay: getNodeRefOrValue(value.delay),
+            timingFunction: getNodeRefOrValue(value.timingFunction),
+          },
+        };
       }
+      case "border": {
+        const value = borderValue.parse(token.$value);
+        return {
+          type: "border",
+          value: {
+            color: getNodeRefOrValue(value.color),
+            width: getNodeRefOrValue(value.width),
+            style: getNodeRefOrValue(value.style),
+          },
+        };
+      }
+      case "shadow": {
+        const value = shadowValue.parse(token.$value);
+        // Convert single shadow objects to arrays for internal storage
+        const shadows = Array.isArray(value) ? value : [value];
+        return {
+          type: "shadow",
+          value: shadows.map((shadow) => ({
+            color: getNodeRefOrValue(shadow.color),
+            offsetX: getNodeRefOrValue(shadow.offsetX),
+            offsetY: getNodeRefOrValue(shadow.offsetY),
+            blur: getNodeRefOrValue(shadow.blur),
+            spread: getNodeRefOrValue(shadow.spread),
+            inset: shadow.inset,
+          })),
+        };
+      }
+      case "typography": {
+        const value = typographyValue.parse(token.$value);
+        return {
+          type: "typography",
+          value: {
+            fontFamily: getNodeRefOrValue(value.fontFamily),
+            fontSize: getNodeRefOrValue(value.fontSize),
+            fontWeight: getNodeRefOrValue(value.fontWeight),
+            letterSpacing: getNodeRefOrValue(value.letterSpacing),
+            lineHeight: getNodeRefOrValue(value.lineHeight),
+          },
+        };
+      }
+      case "gradient": {
+        const value = gradientValue.parse(token.$value);
+        return {
+          type: "gradient",
+          value: value.map((stop) => ({
+            color: getNodeRefOrValue(stop.color),
+            position: stop.position,
+          })),
+        };
+      }
+
+      // validate primitive tokens
+      case "number":
+      case "color":
+      case "dimension":
+      case "duration":
+      case "cubicBezier":
+      case "fontFamily":
+      case "fontWeight":
+      case "strokeStyle": {
+        return RawValueSchema.parse({
+          type: intermediaryType,
+          value: token.$value,
+        });
+      }
+      default:
+        intermediaryType satisfies undefined;
     }
-    const parsed = RawValueSchema.safeParse({
-      type: intermediaryNode.type,
-      value,
-    });
-    if (!parsed.success) {
-      const error = prettifyError(parsed.error);
-      recordError(path, `Invalid ${intermediaryNode.type}: ${error}`);
-      return;
-    }
-    // when value exists always infer and store type in tokens
-    // to alloww groups lock and unlock type freely
-    return parsed.data;
   };
 
   for (const [path, intermediaryNode] of intermediaryNodes) {
@@ -185,9 +356,9 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
       // token node
 
       const token = intermediaryNode.payload;
-      const typeAndValue = resolveTokenTypeAndValue(
+      const typeAndValue = parseTokenTypeAndValue(
         path,
-        intermediaryNode,
+        intermediaryNode.type,
         token,
       );
       if (!typeAndValue) {
@@ -232,6 +403,7 @@ export const serializeDesignTokens = (
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ): Record<string, unknown> => {
   const childrenMap = new Map<string | undefined, TreeNode<TreeNodeMeta>[]>();
+  const nodeIdToPath = new Map<string, string>();
 
   for (const node of nodes.values()) {
     const children = childrenMap.get(node.parentId) ?? [];
@@ -241,6 +413,20 @@ export const serializeDesignTokens = (
   for (const children of childrenMap.values()) {
     children.sort(compareTreeNodes);
   }
+
+  const buildPathMap = (
+    nodeId: string | undefined,
+    parentPath: string[] = [],
+  ): void => {
+    const nodeChildren = childrenMap.get(nodeId) ?? [];
+    for (const node of nodeChildren) {
+      const nodePath = [...parentPath, node.meta.name];
+      const pathStr = nodePath.join(".");
+      nodeIdToPath.set(node.nodeId, pathStr);
+      buildPathMap(node.nodeId, nodePath);
+    }
+  };
+  buildPathMap(undefined);
 
   const serializeNode = (
     node: TreeNode<TreeNodeMeta>,
@@ -276,23 +462,8 @@ export const serializeDesignTokens = (
         $description: meta.description,
         $deprecated: meta.deprecated,
         $extensions: meta.extensions,
-        $value: meta.value,
+        $value: serializeTokenValue(meta, nodeIdToPath),
       };
-      // For shadow tokens stored as arrays, serialize as non-array if there's only one item
-      if (
-        meta.type === "shadow" &&
-        Array.isArray(meta.value) &&
-        meta.value.length === 1
-      ) {
-        const parsed = shadowValue.safeParse(meta.value);
-        if (
-          parsed.success &&
-          Array.isArray(parsed.data) &&
-          parsed.data.length === 1
-        ) {
-          token.$value = parsed.data[0];
-        }
-      }
       return token;
     }
 

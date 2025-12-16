@@ -19,6 +19,17 @@ export type {
   StrokeStyleValue,
 } from "./dtcg.schema";
 
+// Node reference using node ID instead of dot-separated path
+// Used in RawValue to enable fast reference resolution
+export const nodeRefSchema = z.object({
+  ref: z.string(),
+});
+
+export type NodeRef = z.infer<typeof nodeRefSchema>;
+
+export const isNodeRef = (value: unknown): value is NodeRef =>
+  nodeRefSchema.safeParse(value).success;
+
 const colorSchema = z.object({
   type: z.literal("color"),
   value: colorValue,
@@ -71,9 +82,9 @@ const transitionSchema = z.object({
 const rawTransitionSchema = z.object({
   type: z.literal("transition"),
   value: z.object({
-    duration: z.union([durationValue, z.string()]),
-    delay: z.union([durationValue, z.string()]),
-    timingFunction: z.union([cubicBezierValue, z.string()]),
+    duration: z.union([durationValue, nodeRefSchema]),
+    delay: z.union([durationValue, nodeRefSchema]),
+    timingFunction: z.union([cubicBezierValue, nodeRefSchema]),
   }),
 });
 
@@ -92,11 +103,11 @@ const shadowSchema = z.object({
 });
 
 const rawShadowItemSchema = z.object({
-  color: z.union([colorValue, z.string()]),
-  offsetX: z.union([dimensionValue, z.string()]),
-  offsetY: z.union([dimensionValue, z.string()]),
-  blur: z.union([dimensionValue, z.string()]),
-  spread: z.union([dimensionValue, z.string()]),
+  color: z.union([colorValue, nodeRefSchema]),
+  offsetX: z.union([dimensionValue, nodeRefSchema]),
+  offsetY: z.union([dimensionValue, nodeRefSchema]),
+  blur: z.union([dimensionValue, nodeRefSchema]),
+  spread: z.union([dimensionValue, nodeRefSchema]),
   inset: z.boolean().optional(),
 });
 
@@ -117,9 +128,9 @@ const borderSchema = z.object({
 const rawBorderSchema = z.object({
   type: z.literal("border"),
   value: z.object({
-    color: z.union([colorValue, z.string()]),
-    width: z.union([dimensionValue, z.string()]),
-    style: z.union([strokeStyleValue, z.string()]),
+    color: z.union([colorValue, nodeRefSchema]),
+    width: z.union([dimensionValue, nodeRefSchema]),
+    style: z.union([strokeStyleValue, nodeRefSchema]),
   }),
 });
 
@@ -137,11 +148,11 @@ const typographySchema = z.object({
 const rawTypographySchema = z.object({
   type: z.literal("typography"),
   value: z.object({
-    fontFamily: z.union([fontFamilyValue, z.string()]),
-    fontSize: z.union([dimensionValue, z.string()]),
-    fontWeight: z.union([fontWeightValue, z.string()]),
-    letterSpacing: z.union([dimensionValue, z.string()]),
-    lineHeight: z.union([z.number(), z.string()]),
+    fontFamily: z.union([fontFamilyValue, nodeRefSchema]),
+    fontSize: z.union([dimensionValue, nodeRefSchema]),
+    fontWeight: z.union([fontWeightValue, nodeRefSchema]),
+    letterSpacing: z.union([dimensionValue, nodeRefSchema]),
+    lineHeight: z.union([z.number(), nodeRefSchema]),
   }),
 });
 
@@ -159,7 +170,7 @@ const rawGradientSchema = z.object({
   type: z.literal("gradient"),
   value: z.array(
     z.object({
-      color: z.union([colorValue, z.string()]),
+      color: z.union([colorValue, nodeRefSchema]),
       position: z.number(),
     }),
   ),
@@ -221,7 +232,7 @@ export type RawValue = z.infer<typeof RawValueSchema>;
 // add token reference to RawValue value field
 // to make TokenMeta type and value co-located
 type WithReference<T> = T extends { value: infer V }
-  ? Omit<T, "value"> & { value: V | string }
+  ? Omit<T, "value"> & { value: V | NodeRef }
   : T;
 export type RawValueWithReference = WithReference<RawValue>;
 

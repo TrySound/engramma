@@ -255,7 +255,7 @@
         Letter Spacing: {toDimensionValue(typo.letterSpacing)}
       </div>
     {:else if tokenValue.type === "gradient"}
-      {@const gradient = toGradientValue(tokenValue.value)}
+      {@const gradient = toGradientValue(tokenValue.value, new Map())}
       <div class="gradient-preview" style="background: {gradient};"></div>
       <div class="color-value">{gradient}</div>
     {:else if tokenValue.type === "shadow"}
@@ -264,7 +264,7 @@
         : [tokenValue.value]}
       <div
         class="shadow-preview"
-        style="box-shadow: {toShadowValue(tokenValue.value)};"
+        style="box-shadow: {toShadowValue(tokenValue.value, new Map())};"
       ></div>
       <div class="typography-info">{shadows.length} shadow(s)</div>
     {:else if tokenValue.type === "border"}

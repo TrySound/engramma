@@ -5,9 +5,11 @@ import {
   type RawValue,
   type RawValueWithReference,
   type Value,
+  type NodeRef,
   ValueSchema,
+  isNodeRef,
 } from "./schema";
-import { isTokenReference, serializeDesignTokens } from "./tokens";
+import { serializeDesignTokens } from "./tokens";
 import { setDataInUrl } from "./url-data";
 
 export type GroupMeta = {
@@ -61,37 +63,21 @@ type ResolveContext = {
  */
 const getToken = (
   ctx: ResolveContext,
-  reference: string,
+  nodeRef: NodeRef,
 ): TreeNode<TreeNodeMeta> => {
+  const nodeId = nodeRef.ref;
   // check for circular references
-  if (ctx.resolvingStack.has(reference)) {
+  if (ctx.resolvingStack.has(nodeId)) {
     throw new Error(
       `Circular reference detected: ${Array.from(ctx.resolvingStack).join(
         " -> ",
-      )} -> ${reference}`,
+      )} -> ${nodeId}`,
     );
   }
-  // extract token path from "group.token" or "group.nested.token"
-  const segments = reference.replace(/[{}]/g, "").split(".").filter(Boolean);
-  if (segments.length === 0) {
-    throw new Error(`Invalid reference format: "${reference}"`);
-  }
-  const nodesList = Array.from(ctx.nodes.values());
-  let currentNodeId: string | undefined;
-  // navigate through remaining segments
-  for (const segment of segments) {
-    // find child with matching name
-    const nextNode = nodesList.find(
-      (n) => n.parentId === currentNodeId && n.meta.name === segment,
-    );
-    currentNodeId = nextNode?.nodeId;
-  }
-  // final token node
-  const tokenNode = currentNodeId ? ctx.nodes.get(currentNodeId) : undefined;
-  if (!tokenNode || tokenNode.meta.nodeType !== "token") {
-    throw new Error(
-      `Final token node not found while resolving "${reference}"`,
-    );
+  // look up token by nodeId
+  const tokenNode = ctx.nodes.get(nodeId);
+  if (tokenNode?.meta.nodeType !== "token") {
+    throw new Error(`Token node not found while resolving nodeId "${nodeId}"`);
   }
   return tokenNode;
 };
@@ -102,93 +88,24 @@ const resolveRef = <
 >(
   ctx: ResolveContext,
   type: Input["type"],
-  value: string | Output,
+  value: NodeRef | Output,
 ): Output => {
-  if (!isTokenReference(value)) {
+  if (!isNodeRef(value)) {
     return value;
   }
   const tokenNode = getToken(ctx, value);
+  const nodeId = value.ref;
   const newStack = new Set(ctx.resolvingStack);
-  newStack.add(value);
+  if (nodeId) {
+    newStack.add(nodeId);
+  }
   const tokenValue = resolveTokenValue(tokenNode, ctx.nodes, newStack);
   if (tokenValue.type !== type) {
     throw Error(
-      `${value} is expected to have ${type} type, received ${tokenValue.type}`,
+      `${nodeId} is expected to have ${type} type, received ${tokenValue.type}`,
     );
   }
   return tokenValue.value as Output;
-};
-
-const resolveRawValue = (ctx: ResolveContext, tokenValue: RawValue): Value => {
-  switch (tokenValue.type) {
-    case "transition": {
-      const { value } = tokenValue;
-      return {
-        type: "transition",
-        value: {
-          duration: resolveRef(ctx, "duration", value.duration),
-          delay: resolveRef(ctx, "duration", value.delay),
-          timingFunction: resolveRef(ctx, "cubicBezier", value.timingFunction),
-        },
-      };
-    }
-    case "border": {
-      const { value } = tokenValue;
-      return {
-        type: "border",
-        value: {
-          color: resolveRef(ctx, "color", value.color),
-          width: resolveRef(ctx, "dimension", value.width),
-          style: resolveRef(ctx, "strokeStyle", value.style),
-        },
-      };
-    }
-    case "shadow":
-      return {
-        type: "shadow",
-        value: tokenValue.value.map((shadow) => ({
-          color: resolveRef(ctx, "color", shadow.color),
-          offsetX: resolveRef(ctx, "dimension", shadow.offsetX),
-          offsetY: resolveRef(ctx, "dimension", shadow.offsetY),
-          blur: resolveRef(ctx, "dimension", shadow.blur),
-          spread: resolveRef(ctx, "dimension", shadow.spread),
-          inset: shadow.inset,
-        })),
-      };
-    case "typography": {
-      const { value } = tokenValue;
-      return {
-        type: "typography",
-        value: {
-          fontFamily: resolveRef(ctx, "fontFamily", value.fontFamily),
-          fontSize: resolveRef(ctx, "dimension", value.fontSize),
-          fontWeight: resolveRef(ctx, "fontWeight", value.fontWeight),
-          letterSpacing: resolveRef(ctx, "dimension", value.letterSpacing),
-          lineHeight: resolveRef(ctx, "number", value.lineHeight),
-        },
-      };
-    }
-    case "gradient":
-      return {
-        type: "gradient",
-        value: tokenValue.value.map((gradient) => ({
-          color: resolveRef(ctx, "color", gradient.color),
-          position: gradient.position,
-        })),
-      };
-    default:
-      // primitive tokens
-      tokenValue.type satisfies
-        | "number"
-        | "color"
-        | "dimension"
-        | "duration"
-        | "cubicBezier"
-        | "fontFamily"
-        | "fontWeight"
-        | "strokeStyle";
-      return tokenValue;
-  }
 };
 
 /**
@@ -210,33 +127,101 @@ export const resolveTokenValue = (
   if (node.meta.nodeType !== "token") {
     throw new Error("resolveTokenValue requires a token node");
   }
-  const token = node.meta;
   // Check if value is a token reference string
   // If not a reference, resolve composite components if needed
-  if (isTokenReference(token.value)) {
-    // Handle token reference
-    const reference = token.value;
-    const tokenNode = getToken(ctx, reference);
+  if (isNodeRef(node.meta.value)) {
+    const tokenNode = getToken(ctx, node.meta.value);
     // resolve token further if it's also a reference
     const newStack = new Set(resolvingStack);
-    newStack.add(reference);
-    return resolveTokenValue(tokenNode, nodes, newStack);
-  }
-  const resolvedType = token.type ?? findTokenType(node, nodes);
-  if (!resolvedType) {
-    throw new Error(`Token "${token.name}" has no determinable type`);
+    const nodeId = node.meta.value.ref;
+    if (nodeId) {
+      newStack.add(nodeId);
+    }
+    const resolvedValue = resolveTokenValue(tokenNode, nodes, newStack);
+    const parsed = ValueSchema.safeParse(resolvedValue);
+    if (!parsed.success) {
+      throw Error(formatError(parsed.error)._errors.join("\n"));
+    }
+    return resolvedValue;
   }
   // Resolve any component-level references in composite values
-  const resolvedValue = resolveRawValue(ctx, {
-    type: resolvedType,
-    value: node.meta.value,
-  } as RawValue);
-  // Validate resolved value
-  const parsed = ValueSchema.safeParse(resolvedValue);
-  if (!parsed.success) {
-    throw Error(formatError(parsed.error)._errors.join("\n"));
+  switch (node.meta.type) {
+    case "transition": {
+      const { value } = node.meta;
+      return {
+        type: "transition",
+        value: {
+          duration: resolveRef(ctx, "duration", value.duration),
+          delay: resolveRef(ctx, "duration", value.delay),
+          timingFunction: resolveRef(ctx, "cubicBezier", value.timingFunction),
+        },
+      };
+    }
+    case "border": {
+      const { value } = node.meta;
+      return {
+        type: "border",
+        value: {
+          color: resolveRef(ctx, "color", value.color),
+          width: resolveRef(ctx, "dimension", value.width),
+          style: resolveRef(ctx, "strokeStyle", value.style),
+        },
+      };
+    }
+    case "shadow":
+      return {
+        type: "shadow",
+        value: node.meta.value.map((shadow) => ({
+          color: resolveRef(ctx, "color", shadow.color),
+          offsetX: resolveRef(ctx, "dimension", shadow.offsetX),
+          offsetY: resolveRef(ctx, "dimension", shadow.offsetY),
+          blur: resolveRef(ctx, "dimension", shadow.blur),
+          spread: resolveRef(ctx, "dimension", shadow.spread),
+          inset: shadow.inset,
+        })),
+      };
+    case "typography": {
+      const { value } = node.meta;
+      return {
+        type: "typography",
+        value: {
+          fontFamily: resolveRef(ctx, "fontFamily", value.fontFamily),
+          fontSize: resolveRef(ctx, "dimension", value.fontSize),
+          fontWeight: resolveRef(ctx, "fontWeight", value.fontWeight),
+          letterSpacing: resolveRef(ctx, "dimension", value.letterSpacing),
+          lineHeight: resolveRef(ctx, "number", value.lineHeight),
+        },
+      };
+    }
+    case "gradient":
+      return {
+        type: "gradient",
+        value: node.meta.value.map((gradient) => ({
+          color: resolveRef(ctx, "color", gradient.color),
+          position: gradient.position,
+        })),
+      };
+    // primitive tokens
+    case "number":
+      return { type: node.meta.type, value: node.meta.value };
+    case "color":
+      return { type: node.meta.type, value: node.meta.value };
+    case "dimension":
+      return { type: node.meta.type, value: node.meta.value };
+    case "duration":
+      return { type: node.meta.type, value: node.meta.value };
+    case "cubicBezier":
+      return { type: node.meta.type, value: node.meta.value };
+    case "fontFamily":
+      return { type: node.meta.type, value: node.meta.value };
+    case "fontWeight":
+      return { type: node.meta.type, value: node.meta.value };
+    case "strokeStyle":
+      return { type: node.meta.type, value: node.meta.value };
+    default:
+      node.meta satisfies never;
+      throw Error("Unexpected case");
   }
-  return parsed.data;
 };
 
 /**
@@ -257,13 +242,13 @@ export const isAliasCircular = (
   const targetTokenMeta = targetNode.meta;
 
   // If target doesn't have a reference value, it's safe
-  if (!isTokenReference(targetTokenMeta.value)) {
+  if (!isNodeRef(targetTokenMeta.value)) {
     return false;
   }
 
   // Build the path of tokens that the target references through
   const visited = new Set<string>();
-  let currentRef: string | undefined = targetTokenMeta.value as string;
+  let currentRef: string | undefined = targetTokenMeta.value.ref;
 
   while (currentRef) {
     // Prevent infinite loops in our detection logic
@@ -272,36 +257,19 @@ export const isAliasCircular = (
     }
     visited.add(currentRef);
 
-    // Extract token path from "group.token" format
-    const segments = currentRef.replace(/[{}]/g, "").split(".").filter(Boolean);
-    const nodesList = Array.from(nodes.values());
-    let currentNodeId: string | undefined;
-
-    // Navigate through segments to find the token
-    for (const segment of segments) {
-      const nextNode = nodesList.find(
-        (n) => n.parentId === currentNodeId && n.meta.name === segment,
-      );
-      currentNodeId = nextNode?.nodeId;
+    // Get the next reference node
+    const refNode = nodes.get(currentRef);
+    if (!refNode || refNode.meta.nodeType !== "token") {
+      return false;
     }
-
     // Check if we found the current token we're trying to set as alias
-    if (currentNodeId === currentTokenId) {
+    if (currentRef === currentTokenId) {
       return true; // Circular dependency detected
     }
-
-    // Get the next reference if it exists
-    const nextNode = currentNodeId ? nodes.get(currentNodeId) : undefined;
-    if (
-      nextNode?.meta.nodeType === "token" &&
-      typeof nextNode.meta.value === "string" &&
-      isTokenReference(nextNode.meta.value)
-    ) {
-      currentRef = nextNode.meta.value;
-    } else {
-      // Reached end of reference chain
-      currentRef = undefined;
-    }
+    // Move to the next reference in the chain
+    currentRef = isNodeRef(refNode.meta.value)
+      ? refNode.meta.value.ref
+      : undefined;
   }
 
   return false; // No circular dependency

@@ -6,7 +6,8 @@ import { z } from "zod";
 // token name does not start with $ with the only exception for $root
 export const nameSchema = z.string().regex(/^[a-zA-Z0-9_][a-zA-Z0-9_$-]*$/);
 
-// references may use $root
+// references use dot-separated paths with curly braces like {colors.primary}
+// should match $root token
 export const referenceSchema = z
   .string()
   .regex(/^\{[a-zA-Z0-9_$][a-zA-Z0-9_$-]*(\.[a-zA-Z0-9_$][a-zA-Z0-9_$-]*)*\}$/);
@@ -123,13 +124,13 @@ export const strokeStyleValue = z.union([
 
 // composite token values
 
-const borderValue = z.object({
+export const borderValue = z.object({
   color: z.union([colorValue, referenceSchema]),
   width: z.union([dimensionValue, referenceSchema]),
   style: z.union([strokeStyleValue, referenceSchema]),
 });
 
-const transitionValue = z.object({
+export const transitionValue = z.object({
   duration: z.union([durationValue, referenceSchema]),
   delay: z.union([durationValue, referenceSchema]),
   timingFunction: z.union([cubicBezierValue, referenceSchema]),
@@ -147,17 +148,16 @@ const shadowObject = z.object({
 export const shadowValue = z.union([
   shadowObject,
   z.array(shadowObject).min(1),
-  referenceSchema,
 ]);
 
 const gradientStop = z.object({
   color: z.union([colorValue, referenceSchema]),
-  position: z.union([z.number(), referenceSchema]),
+  position: z.number(),
 });
 
-const gradientValue = z.array(z.union([gradientStop, referenceSchema])).min(1);
+export const gradientValue = z.array(gradientStop).min(1);
 
-const typographyValue = z.object({
+export const typographyValue = z.object({
   fontFamily: z.union([fontFamilyValue, referenceSchema]),
   fontSize: z.union([dimensionValue, referenceSchema]),
   fontWeight: z.union([fontWeightValue, referenceSchema]),

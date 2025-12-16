@@ -12,17 +12,17 @@
     type TreeNodeMeta,
   } from "./state.svelte";
   import { parseColor, serializeColor } from "./color";
-  import type {
-    DimensionValue,
-    FontFamilyValue,
-    ShadowItem,
-    StrokeStyleValue,
-    Value,
+  import {
+    isNodeRef,
+    type DimensionValue,
+    type FontFamilyValue,
+    type ShadowItem,
+    type StrokeStyleValue,
+    type Value,
   } from "./schema";
   import CubicBezierEditor from "./cubic-bezier-editor.svelte";
   import GradientEditor from "./gradient-editor.svelte";
   import type { TreeNode } from "./store";
-  import { isTokenReference } from "./tokens";
 
   let {
     id,
@@ -194,26 +194,30 @@
   });
 
   const makeAlias = (targetNodeId: string) => {
-    const targetNode = treeState.getNode(targetNodeId);
-    if (targetNode?.meta.nodeType === "token") {
-      const targetPath = getTokenPath(targetNodeId);
-      const reference = `{${targetPath.join(".")}}`;
-      updateMeta({ value: reference });
-    }
+    updateMeta({ value: { ref: targetNodeId } });
   };
 
-  const isAlias = $derived(
-    meta?.nodeType === "token" && isTokenReference(meta.value),
-  );
+  const isAlias = $derived(meta?.nodeType === "token" && isNodeRef(meta.value));
 
   let aliasSearchInput = $state("");
   let selectedAliasIndex = $state(0);
 
   const aliasPath = $derived.by(() => {
-    if (meta?.nodeType === "token" && isTokenReference(meta.value)) {
-      // Extract path from {group.token} format
-      const reference = meta.value;
-      return reference.replace(/[{}]/g, "").split(".").join(" > ");
+    if (meta?.nodeType === "token" && isNodeRef(meta.value)) {
+      // Build path from tree structure using nodeId
+      const nodeId = meta.value.ref;
+      const path: string[] = [];
+      let currentId: string | undefined = nodeId;
+      const nodes = treeState.nodes();
+      while (currentId) {
+        const node = nodes.get(currentId);
+        if (!node) {
+          break;
+        }
+        path.unshift(node.meta.name);
+        currentId = node.parentId;
+      }
+      return path.join(" > ");
     }
     return "";
   });

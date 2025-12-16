@@ -1,97 +1,126 @@
 import { kebabCase, noCase } from "change-case";
 import { compareTreeNodes, type TreeNode } from "./store";
 import { type GroupMeta, type TokenMeta } from "./state.svelte";
-import type {
-  RawBorderValue,
-  RawGradientValue,
-  RawShadowValue,
-  RawTransitionValue,
-  RawTypographyValue,
-  StrokeStyleValue,
+import {
+  isNodeRef,
+  type NodeRef,
+  type RawBorderValue,
+  type RawGradientValue,
+  type RawShadowValue,
+  type RawTransitionValue,
+  type RawTypographyValue,
+  type StrokeStyleValue,
 } from "./schema";
 import {
   toCubicBezierValue,
   toDimensionValue,
   toDurationValue,
   toFontFamilyValue,
+  toStrokeStyleValue,
 } from "./css-variables";
-import { isTokenReference } from "./tokens";
 import { serializeColor } from "./color";
 
 type TreeNodeMeta = GroupMeta | TokenMeta;
 
-const toStrokeStyleValue = (value: StrokeStyleValue) => {
-  return typeof value === "string" ? value : "solid";
+const referenceToVariable = (
+  nodeRef: NodeRef,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+): string => {
+  const path: string[] = [];
+  let currentId: string | undefined = nodeRef.ref;
+  while (currentId) {
+    const node = nodes.get(currentId);
+    if (!node) {
+      break;
+    }
+    path.unshift(node.meta.name);
+    currentId = node.parentId;
+  }
+  // Convert to kebab-case and create SCSS variable
+  return `$${kebabCase(noCase(path.join("-")))}`;
 };
 
 /**
- * Convert a value or reference to a string or SCSS variable
+ * Convert a value or reference to a string or nested var()
  */
-const valueOrScssVar = <T>(
-  value: T | string,
+const valueOrVariable = <T>(
+  value: T | NodeRef,
   converter: (v: T) => string,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ): string => {
-  if (isTokenReference(value)) {
-    return referenceToVariable(value);
+  if (isNodeRef(value)) {
+    return referenceToVariable(value, nodes);
   }
   return converter(value as T);
 };
 
-const toShadowValue = (value: RawShadowValue) => {
+const toShadowValue = (
+  value: RawShadowValue,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+) => {
   const shadows = Array.isArray(value) ? value : [value];
   const shadowStrings = shadows.map((shadow) => {
-    const color = valueOrScssVar(shadow.color, serializeColor);
+    const color = valueOrVariable(shadow.color, serializeColor, nodes);
     const inset = shadow.inset ? "inset " : "";
-    const offsetX = valueOrScssVar(shadow.offsetX, toDimensionValue);
-    const offsetY = valueOrScssVar(shadow.offsetY, toDimensionValue);
-    const blur = valueOrScssVar(shadow.blur, toDimensionValue);
-    const spread = shadow.spread
-      ? valueOrScssVar(shadow.spread, toDimensionValue)
-      : "";
+    const offsetX = valueOrVariable(shadow.offsetX, toDimensionValue, nodes);
+    const offsetY = valueOrVariable(shadow.offsetY, toDimensionValue, nodes);
+    const blur = valueOrVariable(shadow.blur, toDimensionValue, nodes);
+    const spread = valueOrVariable(shadow.spread, toDimensionValue, nodes);
     return `${inset}${offsetX} ${offsetY} ${blur} ${spread} ${color}`;
   });
   return shadowStrings.join(", ");
 };
 
-const toGradientValue = (value: RawGradientValue) => {
+const toGradientValue = (
+  value: RawGradientValue,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+) => {
   const stops = value.map((stop) => {
-    const color = valueOrScssVar(stop.color, serializeColor);
+    const color = valueOrVariable(stop.color, serializeColor, nodes);
     return `${color} ${stop.position * 100}%`;
   });
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 };
 
-const toBorderValue = (value: RawBorderValue) => {
-  const style = valueOrScssVar(value.style, toStrokeStyleValue);
-  const width = valueOrScssVar(value.width, toDimensionValue);
-  const color = valueOrScssVar(value.color, serializeColor);
+const toBorderValue = (
+  value: RawBorderValue,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+) => {
+  const style = valueOrVariable(value.style, toStrokeStyleValue, nodes);
+  const width = valueOrVariable(value.width, toDimensionValue, nodes);
+  const color = valueOrVariable(value.color, serializeColor, nodes);
   return `${width} ${style} ${color}`;
 };
 
-const toTransitionValue = (value: RawTransitionValue) => {
-  const duration = valueOrScssVar(value.duration, toDurationValue);
-  const timingFunction = valueOrScssVar(
+const toTransitionValue = (
+  value: RawTransitionValue,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+) => {
+  const duration = valueOrVariable(value.duration, toDurationValue, nodes);
+  const timingFunction = valueOrVariable(
     value.timingFunction,
     toCubicBezierValue,
+    nodes,
   );
-  const delay = valueOrScssVar(value.delay, toDurationValue);
+  const delay = valueOrVariable(value.delay, toDurationValue, nodes);
   return `${duration} ${timingFunction} ${delay}`;
 };
 
 const addStrokeStyle = (
   variableName: string,
-  value: StrokeStyleValue | string,
+  value: StrokeStyleValue | NodeRef,
   lines: string[],
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ) => {
-  if (isTokenReference(value)) {
-    lines.push(`${variableName}: ${referenceToVariable(value)};`);
+  if (isNodeRef(value)) {
+    lines.push(`${variableName}: ${referenceToVariable(value, nodes)};`);
     return;
   }
   if (typeof value === "string") {
     lines.push(`${variableName}: ${value};`);
   } else {
     const dashArray = value.dashArray
-      .map((d) => valueOrScssVar(d, toDimensionValue))
+      .map((d) => valueOrVariable(d, toDimensionValue, nodes))
       .join(", ");
     lines.push(`${variableName}-dash-array: ${dashArray};`);
     lines.push(`${variableName}-line-cap: ${value.lineCap};`);
@@ -102,12 +131,21 @@ const addTypography = (
   variableName: string,
   value: RawTypographyValue,
   lines: string[],
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ) => {
-  const fontFamily = valueOrScssVar(value.fontFamily, toFontFamilyValue);
-  const fontSize = valueOrScssVar(value.fontSize, toDimensionValue);
-  const letterSpacing = valueOrScssVar(value.letterSpacing, toDimensionValue);
-  const fontWeight = valueOrScssVar(value.fontWeight, (v) => `${v}`);
-  const lineHeight = valueOrScssVar(value.lineHeight, (v) => `${v}`);
+  const fontFamily = valueOrVariable(
+    value.fontFamily,
+    toFontFamilyValue,
+    nodes,
+  );
+  const fontSize = valueOrVariable(value.fontSize, toDimensionValue, nodes);
+  const letterSpacing = valueOrVariable(
+    value.letterSpacing,
+    toDimensionValue,
+    nodes,
+  );
+  const fontWeight = valueOrVariable(value.fontWeight, (v) => `${v}`, nodes);
+  const lineHeight = valueOrVariable(value.lineHeight, (v) => `${v}`, nodes);
   lines.push(`${variableName}-font-family: ${fontFamily};`);
   lines.push(`${variableName}-font-size: ${fontSize};`);
   lines.push(`${variableName}-font-weight: ${fontWeight};`);
@@ -118,27 +156,24 @@ const addTypography = (
   );
 };
 
-/**
- * Convert a token reference like "{colors.primary}" to an SCSS variable like "$colors-primary"
- */
-const referenceToVariable = (reference: string): string => {
-  // Remove curly braces and split by dots
-  const path = reference.replace(/[{}]/g, "").split(".");
-  // Convert to kebab-case and create SCSS variable
-  return `$${kebabCase(path.join("-"))}`;
-};
-
 const processNode = (
   node: TreeNode<TreeNodeMeta>,
   path: string[],
   childrenByParent: Map<string | undefined, TreeNode<TreeNodeMeta>[]>,
   lines: string[],
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ) => {
   // group is only added to variable name
   if (node.meta.nodeType === "token-group") {
     const children = childrenByParent.get(node.nodeId) ?? [];
     for (const child of children) {
-      processNode(child, [...path, node.meta.name], childrenByParent, lines);
+      processNode(
+        child,
+        [...path, node.meta.name],
+        childrenByParent,
+        lines,
+        nodes,
+      );
     }
   }
 
@@ -146,8 +181,8 @@ const processNode = (
     const token = node.meta;
     const variableName = `$${kebabCase(noCase([...path, node.meta.name].join("-")))}`;
     // Handle token aliases (references to other tokens)
-    if (isTokenReference(token.value)) {
-      const variable = referenceToVariable(token.value);
+    if (isNodeRef(token.value)) {
+      const variable = referenceToVariable(token.value, nodes);
       lines.push(`${variableName}: ${variable};`);
       return;
     }
@@ -172,22 +207,24 @@ const processNode = (
         lines.push(`${variableName}: ${toFontFamilyValue(token.value)};`);
         break;
       case "shadow":
-        lines.push(`${variableName}: ${toShadowValue(token.value)};`);
+        lines.push(`${variableName}: ${toShadowValue(token.value, nodes)};`);
         break;
       case "gradient":
-        lines.push(`${variableName}: ${toGradientValue(token.value)};`);
+        lines.push(`${variableName}: ${toGradientValue(token.value, nodes)};`);
         break;
       case "border":
-        lines.push(`${variableName}: ${toBorderValue(token.value)};`);
+        lines.push(`${variableName}: ${toBorderValue(token.value, nodes)};`);
         break;
       case "transition":
-        lines.push(`${variableName}: ${toTransitionValue(token.value)};`);
+        lines.push(
+          `${variableName}: ${toTransitionValue(token.value, nodes)};`,
+        );
         break;
       case "strokeStyle":
-        addStrokeStyle(variableName, token.value, lines);
+        addStrokeStyle(variableName, token.value, lines, nodes);
         break;
       case "typography":
-        addTypography(variableName, token.value, lines);
+        addTypography(variableName, token.value, lines, nodes);
         break;
       default:
         token satisfies never;
@@ -216,7 +253,7 @@ export const generateScssVariables = (
   // render scss variables
   const rootChildren = childrenByParent.get(undefined) ?? [];
   for (const node of rootChildren) {
-    processNode(node, [], childrenByParent, lines);
+    processNode(node, [], childrenByParent, lines, nodes);
   }
   return lines.join("\n");
 };

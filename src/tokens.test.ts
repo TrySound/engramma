@@ -1002,14 +1002,22 @@ describe("serializeDesignTokens", () => {
     const brandToken = result.nodes.find(
       (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
     );
-    expect(brandToken?.meta).toEqual(
-      expect.objectContaining({
-        nodeType: "token",
-        name: "brand",
-        type: "color",
-        value: "{colors.primary}",
-      }),
-    );
+    expect(brandToken?.meta.nodeType).toBe("token");
+    if (brandToken?.meta.nodeType === "token") {
+      expect(brandToken.meta).toEqual(
+        expect.objectContaining({
+          nodeType: "token",
+          name: "brand",
+          type: "color",
+        }),
+      );
+      // Value should be TokenRef with node ID
+      expect(brandToken.meta.value).toEqual(
+        expect.objectContaining({
+          ref: expect.any(String),
+        }),
+      );
+    }
   });
 
   test("allows token with $value reference but no $type", () => {
@@ -1030,14 +1038,22 @@ describe("serializeDesignTokens", () => {
     const brandToken = result.nodes.find(
       (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
     );
-    expect(brandToken?.meta).toEqual(
-      expect.objectContaining({
-        nodeType: "token",
-        name: "brand",
-        value: "{colors.primary}",
-        type: "color", // Type should be resolved from referenced token
-      }),
-    );
+    expect(brandToken?.meta.nodeType).toBe("token");
+    if (brandToken?.meta.nodeType === "token") {
+      expect(brandToken.meta).toEqual(
+        expect.objectContaining({
+          nodeType: "token",
+          name: "brand",
+          type: "color", // Type should be resolved from referenced token
+        }),
+      );
+      // Value should be TokenRef with node ID
+      expect(brandToken.meta.value).toEqual(
+        expect.objectContaining({
+          ref: expect.any(String),
+        }),
+      );
+    }
   });
 
   test("resolves type recursively for chained token aliases", () => {
@@ -1207,9 +1223,9 @@ describe("serializeDesignTokens", () => {
         type: "shadow",
         value: [
           expect.objectContaining({
-            color: "{colors.black}",
-            offsetX: "{spacing.md}",
-            offsetY: "{spacing.md}",
+            color: expect.objectContaining({ ref: expect.any(String) }),
+            offsetX: expect.objectContaining({ ref: expect.any(String) }),
+            offsetY: expect.objectContaining({ ref: expect.any(String) }),
             blur: { value: 8, unit: "px" },
           }),
         ],
@@ -1253,8 +1269,8 @@ describe("serializeDesignTokens", () => {
         name: "default",
         type: "border",
         value: expect.objectContaining({
-          color: "{colors.gray}",
-          width: "{spacing.sm}",
+          color: expect.objectContaining({ ref: expect.any(String) }),
+          width: expect.objectContaining({ ref: expect.any(String) }),
           style: "solid",
         }),
       }),
@@ -1299,8 +1315,8 @@ describe("serializeDesignTokens", () => {
         name: "base",
         type: "typography",
         value: expect.objectContaining({
-          fontFamily: "{fonts.body}",
-          fontSize: "{spacing.md}",
+          fontFamily: expect.objectContaining({ ref: expect.any(String) }),
+          fontSize: expect.objectContaining({ ref: expect.any(String) }),
           fontWeight: 400,
           lineHeight: 1.5,
           letterSpacing: { value: 0, unit: "px" },
@@ -1348,9 +1364,9 @@ describe("serializeDesignTokens", () => {
         name: "smooth",
         type: "transition",
         value: expect.objectContaining({
-          duration: "{durations.quick}",
-          delay: "{durations.slowDelay}",
-          timingFunction: "{easing.ease}",
+          duration: expect.objectContaining({ ref: expect.any(String) }),
+          delay: expect.objectContaining({ ref: expect.any(String) }),
+          timingFunction: expect.objectContaining({ ref: expect.any(String) }),
         }),
       }),
     );
@@ -1404,13 +1420,13 @@ describe("serializeDesignTokens", () => {
       expect(Array.isArray(gradientValue)).toBe(true);
       expect(gradientValue[0]).toEqual(
         expect.objectContaining({
-          color: "{colors.red}",
+          color: expect.objectContaining({ ref: expect.any(String) }),
           position: 0,
         }),
       );
       expect(gradientValue[1]).toEqual(
         expect.objectContaining({
-          color: "{colors.blue}",
+          color: expect.objectContaining({ ref: expect.any(String) }),
           position: 1,
         }),
       );
