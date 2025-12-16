@@ -2,7 +2,7 @@ import { prettifyError } from "zod";
 import { generateKeyBetween } from "fractional-indexing";
 import { compareTreeNodes, type TreeNode } from "./store";
 import type { GroupMeta, TokenMeta } from "./state.svelte";
-import { RawValueSchema } from "./schema";
+import { RawValueSchema, type RawValueWithReference } from "./schema";
 import {
   nameSchema,
   referenceSchema,
@@ -135,16 +135,15 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     path: string,
     intermediaryNode: IntermediaryNode,
     token: Token,
-  ) => {
+  ): undefined | RawValueWithReference => {
     // Check if value is a token reference (curly brace syntax in $value)
     if (isTokenReference(token.$value)) {
       const type =
         token.$type ?? resolveAliasType(path) ?? intermediaryNode.type;
-      const value = token.$value;
       if (!type) {
         return;
       }
-      return { type, value };
+      return { type, value: token.$value };
     }
     let value = token.$value;
     if (!intermediaryNode.type) {
@@ -172,10 +171,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     }
     // when value exists always infer and store type in tokens
     // to alloww groups lock and unlock type freely
-    return {
-      type: intermediaryNode.type,
-      value: parsed.data.value,
-    };
+    return parsed.data;
   };
 
   for (const [path, intermediaryNode] of intermediaryNodes) {

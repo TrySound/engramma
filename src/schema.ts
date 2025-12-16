@@ -208,8 +208,22 @@ export type BorderValue = z.infer<typeof borderSchema>["value"];
 export type TypographyValue = z.infer<typeof typographySchema>["value"];
 export type GradientValue = z.infer<typeof gradientSchema>["value"];
 
+export type RawTransitionValue = z.infer<typeof rawTransitionSchema>["value"];
+export type RawShadowItem = z.infer<typeof rawShadowItemSchema>;
+export type RawShadowValue = z.infer<typeof rawShadowSchema>["value"];
+export type RawBorderValue = z.infer<typeof rawBorderSchema>["value"];
+export type RawTypographyValue = z.infer<typeof rawTypographySchema>["value"];
+export type RawGradientValue = z.infer<typeof rawGradientSchema>["value"];
+
 export type Value = z.infer<typeof ValueSchema>;
 export type RawValue = z.infer<typeof RawValueSchema>;
+
+// add token reference to RawValue value field
+// to make TokenMeta type and value co-located
+type WithReference<T> = T extends { value: infer V }
+  ? Omit<T, "value"> & { value: V | string }
+  : T;
+export type RawValueWithReference = WithReference<RawValue>;
 
 /* make sure Value and Raw Value are in sync */
 (({}) as unknown as Value)["type"] satisfies RawValue["type"];

@@ -616,7 +616,7 @@
               aria-label="Remove alias"
               onclick={() => {
                 if (tokenValue) {
-                  updateMeta({ value: tokenValue.value });
+                  updateMeta(tokenValue);
                   aliasSearchInput = "";
                   selectedAliasIndex = 0;
                   aliasPopoverElement?.hidePopover();

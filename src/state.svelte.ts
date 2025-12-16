@@ -1,7 +1,12 @@
 import { formatError } from "zod";
 import { createSubscriber } from "svelte/reactivity";
 import { TreeStore, type Transaction, type TreeNode } from "./store";
-import { type RawValue, type Value, ValueSchema } from "./schema";
+import {
+  type RawValue,
+  type RawValueWithReference,
+  type Value,
+  ValueSchema,
+} from "./schema";
 import { isTokenReference, serializeDesignTokens } from "./tokens";
 import { setDataInUrl } from "./url-data";
 
@@ -17,12 +22,10 @@ export type GroupMeta = {
 export type TokenMeta = {
   nodeType: "token";
   name: string;
-  type: Value["type"];
-  value: string | RawValue["value"];
   description?: string;
   deprecated?: boolean | string;
   extensions?: Record<string, unknown>;
-};
+} & RawValueWithReference;
 
 /**
  * Helper function to find the type of a token

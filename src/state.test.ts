@@ -7,7 +7,7 @@ import {
   type TreeNodeMeta,
 } from "./state.svelte";
 import type { TreeNode } from "./store";
-import type { Value } from "./schema";
+import type { RawValue } from "./schema";
 
 const meta = undefined;
 
@@ -553,11 +553,11 @@ describe("resolveTokenValue", () => {
   });
 
   test("should resolve various token types", () => {
-    const testCases: Array<{
-      name: string;
-      value: Value["value"];
-      type: Value["type"];
-    }> = [
+    const testCases: Array<
+      {
+        name: string;
+      } & RawValue
+    > = [
       {
         name: "dimension",
         value: { value: 16, unit: "px" },
@@ -577,12 +577,7 @@ describe("resolveTokenValue", () => {
         nodeId: "source-node",
         parentId: "base-group",
         index: "a0",
-        meta: {
-          nodeType: "token",
-          name: testCase.name,
-          type: testCase.type,
-          value: testCase.value,
-        },
+        meta: { nodeType: "token", ...testCase },
       };
       const baseGroup: TreeNode<TreeNodeMeta> = {
         nodeId: "base-group",
