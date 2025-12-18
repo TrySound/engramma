@@ -9,15 +9,17 @@
     resolveTokenValue,
     findTokenType,
     type TreeNodeMeta,
+    resolveRawValue,
   } from "./state.svelte";
   import { parseColor, serializeColor } from "./color";
-  import {
-    isNodeRef,
-    type DimensionValue,
-    type FontFamilyValue,
-    type ShadowItem,
-    type StrokeStyleValue,
-    type Value,
+  import type {
+    DimensionValue,
+    DurationValue,
+    FontFamilyValue,
+    RawShadowItem,
+    ShadowItem,
+    StrokeStyleValue,
+    Value,
   } from "./schema";
   import CubicBezierEditor from "./cubic-bezier-editor.svelte";
   import GradientEditor from "./gradient-editor.svelte";
@@ -84,8 +86,12 @@
       return treeState.getNode(nodeId);
     }
   });
-  const meta = $derived(node?.meta);
-  const tokenValue = $derived.by(() => {
+  const rawValue = $derived.by(() => {
+    if (node?.meta.nodeType === "token") {
+      return resolveRawValue(node, treeState.nodes());
+    }
+  });
+  const resolvedValue = $derived.by(() => {
     if (node?.meta.nodeType === "token") {
       return resolveTokenValue(node, treeState.nodes());
     }
@@ -172,14 +178,12 @@
 {#snippet dimensionEditor(
   dimension: DimensionValue,
   onChange: (value: DimensionValue) => void,
-  disabled: boolean = false,
 )}
   <div class="dimension-input-group">
     <input
       class="a-field dimension-value"
       type="number"
       value={dimension.value}
-      {disabled}
       step="0.1"
       placeholder="Value"
       oninput={(e) => {
@@ -192,7 +196,6 @@
     <select
       class="a-field dimension-unit-select"
       value={dimension.unit}
-      {disabled}
       onchange={(e) => {
         onChange({
           ...dimension,
@@ -206,14 +209,48 @@
   </div>
 {/snippet}
 
+{#snippet durationEditor(
+  duration: DurationValue,
+  onChange: (value: DurationValue) => void,
+)}
+  <div class="duration-input-group">
+    <input
+      id="duration-value-input"
+      class="a-field duration-value"
+      type="number"
+      step="1"
+      placeholder="Value"
+      value={duration.value}
+      oninput={(e) => {
+        const value = Number.parseFloat(e.currentTarget.value);
+        if (!Number.isNaN(value)) {
+          onChange({ ...duration, value });
+        }
+      }}
+    />
+    <select
+      id="duration-unit-input"
+      class="a-field duration-unit-select"
+      value={duration.unit}
+      onchange={(e) => {
+        onChange({
+          ...duration,
+          unit: e.currentTarget.value as "ms" | "s",
+        });
+      }}
+    >
+      <option value="ms">ms</option>
+      <option value="s">s</option>
+    </select>
+  </div>
+{/snippet}
+
 {#snippet fontFamilyEditor(
   fontFamily: FontFamilyValue,
   onChange: (value: FontFamilyValue) => void,
-  disabled: boolean = false,
 )}
   <textarea
     class="a-field"
-    {disabled}
     placeholder="e.g., Inter, -apple-system, BlinkMacSystemFont, sans-serif"
     value={typeof fontFamily === "string" ? fontFamily : fontFamily.join(", ")}
     oninput={(e) => {
@@ -227,12 +264,10 @@
 {#snippet fontWeightEditor(
   fontWeight: number | string,
   onChange: (value: number) => void,
-  disabled: boolean = false,
 )}
   <select
     class="a-field"
     value={String(normalizeFontWeight(fontWeight))}
-    {disabled}
     onchange={(e) => {
       const value = Number.parseInt(e.currentTarget.value, 10);
       onChange(value);
@@ -254,13 +289,11 @@
 {#snippet strokeStyleEditor(
   strokeStyle: StrokeStyleValue,
   onChange: (value: StrokeStyleValue) => void,
-  disabled: boolean = false,
 )}
   {#if typeof strokeStyle === "string"}
     <select
       class="a-field"
       value={strokeStyle}
-      {disabled}
       onchange={(e) => {
         const value = e.currentTarget.value;
         if (value !== "custom") {
@@ -287,7 +320,6 @@
     <select
       class="a-field"
       value="custom"
-      {disabled}
       onchange={(e) => {
         const value = e.currentTarget.value;
         if (value !== "custom") {
@@ -307,12 +339,11 @@
     </select>
 
     <div class="form-group">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label class="a-label">Line Cap</label>
+      <label class="a-label" for="stroke-style-line-cap">Line Cap</label>
       <select
+        id="stroke-style-line-cap"
         class="a-field"
         value={strokeStyle.lineCap}
-        {disabled}
         onchange={(e) => {
           onChange({
             ...strokeStyle,
@@ -379,7 +410,7 @@
 <div {id} popover="auto" class="a-popover editor-popover" {...rest}>
   <div class="form-header">
     <h2 class="a-panel-title">
-      {meta?.nodeType === "token-group" ? "Group" : "Token"}
+      {node?.meta.nodeType === "token-group" ? "Group" : "Token"}
     </h2>
     <button
       class="a-button"
@@ -400,20 +431,23 @@
           class="a-field"
           type="text"
           autocomplete="off"
-          value={meta?.name}
+          value={node?.meta.name}
           oninput={(e) => handleNameChange(e.currentTarget.value)}
         />
-        {#if node?.meta.nodeType === "token" && tokenValue}
+        {#if node?.meta.nodeType === "token" && rawValue}
+          <!-- nodeId is necessary here to do circular check -->
           <AliasToken
             nodeId={node.nodeId}
-            type={tokenValue.type}
-            nodeRef={isNodeRef(node.meta.value) ? node.meta.value : undefined}
+            type={node.meta.type}
+            value={node.meta.value}
             onChange={(newNodeRef) => {
               /* set resolved value when reference is removed */
               if (newNodeRef) {
                 updateMeta({ value: newNodeRef });
               } else {
-                updateMeta(tokenValue);
+                // preserve aliases in composite tokens components
+                // when reset token alias
+                updateMeta(rawValue);
               }
             }}
           />
@@ -426,7 +460,7 @@
       <textarea
         id="description-input"
         class="a-field"
-        value={meta?.description ?? ""}
+        value={node?.meta.description ?? ""}
         oninput={(e) => handleDescriptionChange(e.currentTarget.value)}
       ></textarea>
     </div>
@@ -453,10 +487,10 @@
       </div>
     {/if}
 
-    {#if meta?.nodeType === "token" && tokenValue}
+    {#if node?.meta.nodeType === "token"}
       <div class="form-group">
         <div class="a-label">Type</div>
-        <div class="a-field">{tokenValue.type}</div>
+        <div class="a-field">{node.meta.type}</div>
       </div>
     {/if}
 
@@ -466,29 +500,32 @@
           id="deprecated-input"
           class="a-checkbox"
           type="checkbox"
-          checked={meta?.deprecated !== undefined}
+          checked={node?.meta.deprecated !== undefined}
           onchange={(e) => handleDeprecatedChange(e.currentTarget.checked)}
         />
         <label class="a-label" for="deprecated-input"> Deprecated </label>
       </div>
-      {#if meta?.deprecated !== undefined}
+      {#if node?.meta.deprecated !== undefined}
         <textarea
           class="a-field"
           placeholder="Reason for deprecation"
           bind:value={
-            () => (typeof meta.deprecated === "string" ? meta.deprecated : ""),
+            () =>
+              typeof node?.meta.deprecated === "string"
+                ? node.meta.deprecated
+                : "",
             (reason) => handleDeprecatedChange(reason)
           }
         ></textarea>
       {/if}
     </div>
 
-    {#if tokenValue?.type === "color"}
+    {#if rawValue?.type === "color"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Color</label>
         <color-input
-          value={serializeColor(tokenValue.value)}
+          value={serializeColor(rawValue.value)}
           onopen={(event: InputEvent) => {
             // track both open and close because of bug in css-color-component
             const input = event.target as HTMLInputElement;
@@ -502,92 +539,34 @@
       </div>
     {/if}
 
-    {#if tokenValue?.type === "dimension"}
+    {#if rawValue?.type === "dimension"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Dimension</label>
-        <div class="dimension-input-group">
-          <input
-            id="dimension-value-input"
-            class="a-field dimension-value"
-            type="number"
-            value={tokenValue.value.value}
-            oninput={(e) => {
-              const value = Number.parseFloat(e.currentTarget.value);
-              if (!Number.isNaN(value)) {
-                updateMeta({ value: { ...tokenValue.value, value } });
-              }
-            }}
-            step="0.1"
-            placeholder="Value"
-          />
-          <select
-            id="dimension-unit-input"
-            class="a-field dimension-unit-select"
-            value={tokenValue.value.unit}
-            onchange={(e) => {
-              updateMeta({
-                value: {
-                  ...tokenValue.value,
-                  unit: e.currentTarget.value as "px" | "rem",
-                },
-              });
-            }}
-          >
-            <option value="px">px</option>
-            <option value="rem">rem</option>
-          </select>
-        </div>
+        {@render dimensionEditor(rawValue.value, (value) => {
+          updateMeta({ value });
+        })}
       </div>
     {/if}
 
-    {#if tokenValue?.type === "duration"}
+    {#if rawValue?.type === "duration"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Duration</label>
-        <div class="duration-input-group">
-          <input
-            id="duration-value-input"
-            class="a-field duration-value"
-            type="number"
-            value={tokenValue.value.value}
-            oninput={(e) => {
-              const value = Number.parseFloat(e.currentTarget.value);
-              if (!Number.isNaN(value)) {
-                updateMeta({ value: { ...tokenValue.value, value } });
-              }
-            }}
-            step="1"
-            placeholder="Value"
-          />
-          <select
-            id="duration-unit-input"
-            class="a-field duration-unit-select"
-            value={tokenValue.value.unit}
-            onchange={(e) => {
-              updateMeta({
-                value: {
-                  ...tokenValue.value,
-                  unit: e.currentTarget.value as "ms" | "s",
-                },
-              });
-            }}
-          >
-            <option value="ms">ms</option>
-            <option value="s">s</option>
-          </select>
-        </div>
+        {@render durationEditor(rawValue.value, (value) => {
+          updateMeta({ value });
+        })}
       </div>
     {/if}
 
-    {#if tokenValue?.type === "number"}
+    {#if rawValue?.type === "number"}
       <div class="form-group">
-        <label class="a-label" for="number-input">Value</label>
+        <label class="a-label" for="editor-number-input">Value</label>
         <input
-          id="number-input"
+          id="editor-number-input"
           class="a-field"
           type="number"
-          value={tokenValue.value}
+          value={rawValue.value}
           oninput={(e) => {
             const value = Number.parseFloat(e.currentTarget.value);
             if (!Number.isNaN(value)) {
@@ -599,32 +578,32 @@
       </div>
     {/if}
 
-    {#if tokenValue?.type === "fontFamily"}
+    {#if rawValue?.type === "fontFamily"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Font Family</label>
-        {@render fontFamilyEditor(tokenValue.value, (value) => {
+        {@render fontFamilyEditor(rawValue.value, (value) => {
           updateMeta({ value });
         })}
       </div>
     {/if}
 
-    {#if tokenValue?.type === "fontWeight"}
+    {#if rawValue?.type === "fontWeight"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Font Weight</label>
-        {@render fontWeightEditor(tokenValue.value, (value) => {
+        {@render fontWeightEditor(rawValue.value, (value) => {
           updateMeta({ value });
         })}
       </div>
     {/if}
 
-    {#if tokenValue?.type === "cubicBezier"}
+    {#if rawValue?.type === "cubicBezier"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Easing Function</label>
         <CubicBezierEditor
-          value={tokenValue.value}
+          value={rawValue.value}
           onChange={(value) => {
             updateMeta({ value });
           }}
@@ -632,97 +611,63 @@
       </div>
     {/if}
 
-    {#if tokenValue?.type === "transition"}
+    {#if rawValue?.type === "strokeStyle"}
+      <div class="form-group">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label class="a-label">Style</label>
+        {@render strokeStyleEditor(rawValue.value, (value) => {
+          updateMeta({ value });
+        })}
+      </div>
+    {/if}
+
+    {#if rawValue?.type === "transition" && resolvedValue?.type === "transition"}
       <div class="transition-durations">
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Duration</label>
-          <div class="dimension-input-group">
-            <input
-              class="a-field duration-value"
-              type="number"
-              value={tokenValue.value.duration.value}
-              step="1"
-              placeholder="Value"
-              oninput={(e) => {
-                const val = Number.parseFloat(e.currentTarget.value);
-                if (!Number.isNaN(val)) {
-                  updateMeta({
-                    value: {
-                      ...tokenValue.value,
-                      duration: {
-                        ...tokenValue.value.duration,
-                        value: val,
-                      },
-                    },
-                  });
-                }
-              }}
-            />
-            <select
-              class="a-field duration-unit-select"
-              value={tokenValue.value.duration.unit}
-              onchange={(e) => {
+          <div class="input-with-button">
+            {@render durationEditor(resolvedValue.value.duration, (duration) =>
+              updateMeta({
+                value: { ...rawValue.value, duration },
+              }),
+            )}
+            <AliasToken
+              type="duration"
+              value={rawValue.value.duration}
+              onChange={(duration) => {
                 updateMeta({
                   value: {
-                    ...tokenValue.value,
-                    duration: {
-                      ...tokenValue.value.duration,
-                      unit: e.currentTarget.value as "ms" | "s",
-                    },
+                    ...rawValue.value,
+                    duration: duration ?? resolvedValue.value.duration,
                   },
                 });
               }}
-            >
-              <option value="ms">ms</option>
-              <option value="s">s</option>
-            </select>
+            />
           </div>
         </div>
 
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Delay</label>
-          <div class="dimension-input-group">
-            <input
-              class="a-field duration-value"
-              type="number"
-              value={tokenValue.value.delay.value}
-              step="1"
-              placeholder="Value"
-              oninput={(e) => {
-                const val = Number.parseFloat(e.currentTarget.value);
-                if (!Number.isNaN(val)) {
-                  updateMeta({
-                    value: {
-                      ...tokenValue.value,
-                      delay: {
-                        ...tokenValue.value.delay,
-                        value: val,
-                      },
-                    },
-                  });
-                }
-              }}
-            />
-            <select
-              class="a-field duration-unit-select"
-              value={tokenValue.value.delay.unit}
-              onchange={(e) => {
+          <div class="input-with-button">
+            {@render durationEditor(resolvedValue.value.delay, (delay) =>
+              updateMeta({
+                value: { ...rawValue.value, delay },
+              }),
+            )}
+            <AliasToken
+              type="duration"
+              value={rawValue.value.delay}
+              onChange={(delay) => {
                 updateMeta({
                   value: {
-                    ...tokenValue.value,
-                    delay: {
-                      ...tokenValue.value.delay,
-                      unit: e.currentTarget.value as "ms" | "s",
-                    },
+                    ...rawValue.value,
+                    delay: delay ?? resolvedValue.value.delay,
                   },
                 });
               }}
-            >
-              <option value="ms">ms</option>
-              <option value="s">s</option>
-            </select>
+            />
           </div>
         </div>
       </div>
@@ -730,104 +675,193 @@
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Timing Function</label>
-        <CubicBezierEditor
-          value={tokenValue.value.timingFunction}
-          onChange={(value) => {
-            updateMeta({
-              value: { ...tokenValue.value, timingFunction: value },
-            });
-          }}
-        />
+        <div class="input-with-button">
+          <CubicBezierEditor
+            value={resolvedValue.value.timingFunction}
+            onChange={(value) => {
+              updateMeta({
+                value: { ...rawValue.value, timingFunction: value },
+              });
+            }}
+          />
+          <AliasToken
+            type="cubicBezier"
+            value={rawValue.value.timingFunction}
+            onChange={(timingFunction) => {
+              updateMeta({
+                value: {
+                  ...rawValue.value,
+                  timingFunction:
+                    timingFunction ?? resolvedValue.value.timingFunction,
+                },
+              });
+            }}
+          />
+        </div>
       </div>
     {/if}
 
-    {#if tokenValue?.type === "typography"}
+    {#if rawValue?.type === "typography" && resolvedValue?.type === "typography"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Font Family</label>
-        {@render fontFamilyEditor(tokenValue.value.fontFamily, (fontFamily) => {
-          updateMeta({
-            value: { ...tokenValue.value, fontFamily },
-          });
-        })}
+        <div class="input-with-button">
+          {@render fontFamilyEditor(
+            resolvedValue.value.fontFamily,
+            (fontFamily) => {
+              updateMeta({
+                value: { ...rawValue.value, fontFamily },
+              });
+            },
+          )}
+          <AliasToken
+            type="fontFamily"
+            value={rawValue.value.fontFamily}
+            onChange={(fontFamily) => {
+              updateMeta({
+                value: {
+                  ...rawValue.value,
+                  fontFamily: fontFamily ?? resolvedValue.value.fontFamily,
+                },
+              });
+            }}
+          />
+        </div>
       </div>
 
       <div class="typography-aux">
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Font Size</label>
-          {@render dimensionEditor(tokenValue.value.fontSize, (fontSize) => {
-            updateMeta({
-              value: { ...tokenValue.value, fontSize },
-            });
-          })}
+          <div class="input-with-button">
+            {@render dimensionEditor(
+              resolvedValue.value.fontSize,
+              (fontSize) => {
+                updateMeta({
+                  value: { ...rawValue.value, fontSize },
+                });
+              },
+            )}
+            <AliasToken
+              type="dimension"
+              value={rawValue.value.fontSize}
+              onChange={(fontSize) => {
+                updateMeta({
+                  value: {
+                    ...rawValue.value,
+                    fontSize: fontSize ?? resolvedValue.value.fontSize,
+                  },
+                });
+              }}
+            />
+          </div>
         </div>
 
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Font Weight</label>
-          {@render fontWeightEditor(
-            tokenValue.value.fontWeight,
-            (fontWeight) => {
-              updateMeta({
-                value: { ...tokenValue.value, fontWeight },
-              });
-            },
-          )}
+          <div class="input-with-button">
+            {@render fontWeightEditor(
+              resolvedValue.value.fontWeight,
+              (fontWeight) => {
+                updateMeta({
+                  value: { ...rawValue.value, fontWeight },
+                });
+              },
+            )}
+            <AliasToken
+              type="fontWeight"
+              value={rawValue.value.fontWeight}
+              onChange={(fontWeight) => {
+                updateMeta({
+                  value: {
+                    ...rawValue.value,
+                    fontWeight: fontWeight ?? resolvedValue.value.fontWeight,
+                  },
+                });
+              }}
+            />
+          </div>
         </div>
 
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Line Height</label>
-          <input
-            class="a-field"
-            type="number"
-            value={tokenValue.value.lineHeight}
-            oninput={(e) => {
-              const value = Number.parseFloat(e.currentTarget.value);
-              if (!Number.isNaN(value)) {
+          <div class="input-with-button">
+            <input
+              class="a-field"
+              type="number"
+              value={resolvedValue.value.lineHeight}
+              oninput={(e) => {
+                const value = Number.parseFloat(e.currentTarget.value);
+                if (!Number.isNaN(value)) {
+                  updateMeta({
+                    value: { ...rawValue.value, lineHeight: value },
+                  });
+                }
+              }}
+              step="0.1"
+              placeholder="e.g., 1.5"
+            />
+            <AliasToken
+              type="number"
+              value={rawValue.value.lineHeight}
+              onChange={(lineHeight) => {
                 updateMeta({
-                  value: { ...tokenValue.value, lineHeight: value },
+                  value: {
+                    ...rawValue.value,
+                    lineHeight: lineHeight ?? resolvedValue.value.lineHeight,
+                  },
                 });
-              }
-            }}
-            step="0.1"
-            placeholder="e.g., 1.5"
-          />
+              }}
+            />
+          </div>
         </div>
 
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Letter Spacing</label>
-          {@render dimensionEditor(
-            tokenValue.value.letterSpacing,
-            (letterSpacing) => {
-              updateMeta({
-                value: { ...tokenValue.value, letterSpacing },
-              });
-            },
-          )}
+          <div class="input-with-button">
+            {@render dimensionEditor(
+              resolvedValue.value.letterSpacing,
+              (letterSpacing) => {
+                updateMeta({
+                  value: { ...rawValue.value, letterSpacing },
+                });
+              },
+            )}
+            <AliasToken
+              type="dimension"
+              value={rawValue.value.letterSpacing}
+              onChange={(letterSpacing) => {
+                updateMeta({
+                  value: {
+                    ...rawValue.value,
+                    letterSpacing:
+                      letterSpacing ?? resolvedValue.value.letterSpacing,
+                  },
+                });
+              }}
+            />
+          </div>
         </div>
       </div>
     {/if}
 
-    {#if tokenValue?.type === "strokeStyle"}
-      <div class="form-group">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label class="a-label">Style</label>
-        {@render strokeStyleEditor(tokenValue.value, (value) => {
-          updateMeta({ value });
-        })}
-      </div>
-    {/if}
-
-    {#if tokenValue?.type === "shadow"}
-      {@const shadows = tokenValue.value}
+    {#if rawValue?.type === "shadow" && resolvedValue?.type === "shadow"}
+      {@const shadows = rawValue.value}
+      {@const resolvedShadows = resolvedValue.value}
+      {@const updateItem = (index: number, item: Partial<RawShadowItem>) => {
+        const newShadows = [...shadows];
+        newShadows[index] = { ...newShadows[index], ...item };
+        updateMeta({ value: newShadows });
+      }}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Shadow</label>
         <div class="shadow-list">
           {#each shadows as item, index (index)}
+            {@const resolvedItem = resolvedShadows[index]}
             <div class="shadow-item">
               <div class="form-checkbox-group">
                 <input
@@ -835,10 +869,10 @@
                   class="a-checkbox"
                   type="checkbox"
                   checked={item.inset ?? false}
-                  onchange={(e) => {
-                    const updated = [...shadows];
-                    updated[index].inset = e.currentTarget.checked || undefined;
-                    updateMeta({ value: updated });
+                  onchange={(event) => {
+                    updateItem(index, {
+                      inset: event.currentTarget.checked || undefined,
+                    });
                   }}
                 />
                 <label for="shadow-inset-{index}" class="a-label">
@@ -851,57 +885,92 @@
                   class="a-button remove-shadow-button"
                   aria-label="Remove shadow"
                   onclick={() => {
-                    const updated = shadows.filter((_, i) => i !== index);
-                    updateMeta({ value: updated });
+                    const newShadows = shadows.filter((_, i) => i !== index);
+                    updateMeta({ value: newShadows });
                   }}
                 >
                   <X size={16} />
                 </button>
               {/if}
 
-              <color-input
-                class="shadow-color"
-                value={serializeColor(item.color)}
-                onopen={(event: InputEvent) => {
-                  const input = event.target as HTMLInputElement;
-                  const updated = [...shadows];
-                  updated[index].color = parseColor(input.value);
-                  updateMeta({ value: updated });
-                }}
-                onclose={(event: InputEvent) => {
-                  const input = event.target as HTMLInputElement;
-                  const updated = [...shadows];
-                  updated[index].color = parseColor(input.value);
-                  updateMeta({ value: updated });
-                }}
-              ></color-input>
+              <div class="input-with-button shadow-color">
+                <color-input
+                  value={serializeColor(resolvedItem.color)}
+                  onopen={(event: InputEvent) => {
+                    const input = event.target as HTMLInputElement;
+                    updateItem(index, { color: parseColor(input.value) });
+                  }}
+                  onclose={(event: InputEvent) => {
+                    const input = event.target as HTMLInputElement;
+                    updateItem(index, { color: parseColor(input.value) });
+                  }}
+                ></color-input>
+                <AliasToken
+                  type="color"
+                  value={item.color}
+                  onChange={(color) => {
+                    updateItem(index, { color: color ?? resolvedItem.color });
+                  }}
+                />
+              </div>
 
-              {@render dimensionEditor(item.offsetX, (offsetX) => {
-                const updated = [...shadows];
-                updated[index].offsetX = offsetX;
-                updateMeta({ value: updated });
-              })}
+              <div class="input-with-button">
+                {@render dimensionEditor(resolvedItem.offsetX, (offsetX) => {
+                  updateItem(index, { offsetX });
+                })}
+                <AliasToken
+                  type="dimension"
+                  value={item.offsetX}
+                  onChange={(offsetX) => {
+                    updateItem(index, {
+                      offsetX: offsetX ?? resolvedItem.offsetX,
+                    });
+                  }}
+                />
+              </div>
 
-              {@render dimensionEditor(item.offsetY, (offsetY) => {
-                const updated = [...shadows];
-                updated[index].offsetY = offsetY;
-                updateMeta({ value: updated });
-              })}
+              <div class="input-with-button">
+                {@render dimensionEditor(resolvedItem.offsetY, (offsetY) => {
+                  updateItem(index, { offsetY });
+                })}
+                <AliasToken
+                  type="dimension"
+                  value={item.offsetY}
+                  onChange={(offsetY) => {
+                    updateItem(index, {
+                      offsetY: offsetY ?? resolvedItem.offsetY,
+                    });
+                  }}
+                />
+              </div>
 
-              {@render dimensionEditor(item.blur, (blur) => {
-                const updated = [...shadows];
-                updated[index].blur = blur;
-                updateMeta({ value: updated });
-              })}
+              <div class="input-with-button">
+                {@render dimensionEditor(resolvedItem.blur, (blur) => {
+                  updateItem(index, { blur });
+                })}
+                <AliasToken
+                  type="dimension"
+                  value={item.blur}
+                  onChange={(blur) => {
+                    updateItem(index, { blur: blur ?? resolvedItem.blur });
+                  }}
+                />
+              </div>
 
-              {@render dimensionEditor(
-                item.spread ?? { value: 0, unit: "px" },
-                (spread) => {
-                  const updated = [...shadows];
-                  updated[index].spread = spread;
-                  updateMeta({ value: updated });
-                },
-              )}
+              <div class="input-with-button">
+                {@render dimensionEditor(resolvedItem.spread, (spread) => {
+                  updateItem(index, { spread });
+                })}
+                <AliasToken
+                  type="dimension"
+                  value={item.spread}
+                  onChange={(spread) => {
+                    updateItem(index, {
+                      spread: spread ?? resolvedItem.spread,
+                    });
+                  }}
+                />
+              </div>
             </div>
           {/each}
 
@@ -924,55 +993,97 @@
       </div>
     {/if}
 
-    {#if tokenValue?.type === "border"}
-      {@const border = tokenValue.value}
+    {#if rawValue?.type === "border" && resolvedValue?.type === "border"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Color</label>
-        <color-input
-          value={serializeColor(border.color)}
-          onopen={(event: InputEvent) => {
-            const input = event.target as HTMLInputElement;
-            updateMeta({
-              value: { ...border, color: parseColor(input.value) },
-            });
-          }}
-          onclose={(event: InputEvent) => {
-            const input = event.target as HTMLInputElement;
-            updateMeta({
-              value: { ...border, color: parseColor(input.value) },
-            });
-          }}
-        ></color-input>
+        <div class="input-with-button">
+          <color-input
+            value={serializeColor(resolvedValue.value.color)}
+            onopen={(event: InputEvent) => {
+              const input = event.target as HTMLInputElement;
+              updateMeta({
+                value: { ...rawValue.value, color: parseColor(input.value) },
+              });
+            }}
+            onclose={(event: InputEvent) => {
+              const input = event.target as HTMLInputElement;
+              updateMeta({
+                value: { ...rawValue.value, color: parseColor(input.value) },
+              });
+            }}
+          ></color-input>
+          <AliasToken
+            type="color"
+            value={rawValue.value.color}
+            onChange={(color) => {
+              updateMeta({
+                value: {
+                  ...rawValue.value,
+                  color: color ?? resolvedValue.value.color,
+                },
+              });
+            }}
+          />
+        </div>
       </div>
 
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Width</label>
-        {@render dimensionEditor(border.width, (width) => {
-          updateMeta({
-            value: { ...border, width },
-          });
-        })}
+        <div class="input-with-button">
+          {@render dimensionEditor(resolvedValue.value.width, (width) => {
+            updateMeta({
+              value: { ...rawValue.value, width },
+            });
+          })}
+          <AliasToken
+            type="dimension"
+            value={rawValue.value.width}
+            onChange={(width) => {
+              updateMeta({
+                value: {
+                  ...rawValue.value,
+                  width: width ?? resolvedValue.value.width,
+                },
+              });
+            }}
+          />
+        </div>
       </div>
 
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Style</label>
-        {@render strokeStyleEditor(border.style, (style) => {
-          updateMeta({
-            value: { ...border, style },
-          });
-        })}
+        <div class="input-with-button">
+          {@render strokeStyleEditor(resolvedValue.value.style, (style) => {
+            updateMeta({
+              value: { ...rawValue.value, style },
+            });
+          })}
+          <AliasToken
+            type="strokeStyle"
+            value={rawValue.value.style}
+            onChange={(style) => {
+              updateMeta({
+                value: {
+                  ...rawValue.value,
+                  style: style ?? resolvedValue.value.style,
+                },
+              });
+            }}
+          />
+        </div>
       </div>
     {/if}
 
-    {#if tokenValue?.type === "gradient"}
+    {#if rawValue?.type === "gradient" && resolvedValue?.type === "gradient"}
       <div class="form-group">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="a-label">Gradient</label>
         <GradientEditor
-          value={tokenValue.value}
+          value={resolvedValue.value}
+          rawValue={rawValue.value}
           onChange={(value) => {
             updateMeta({ value });
           }}

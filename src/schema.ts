@@ -88,7 +88,7 @@ const rawTransitionSchema = z.object({
   }),
 });
 
-export const shadowItemSchema = z.object({
+const shadowItemSchema = z.object({
   color: colorValue,
   offsetX: dimensionValue,
   offsetY: dimensionValue,

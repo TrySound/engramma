@@ -2,6 +2,7 @@ import { test, expect, describe } from "vitest";
 import {
   TreeState,
   resolveTokenValue,
+  resolveRawValue,
   isAliasCircular,
   type TokenMeta,
   type TreeNodeMeta,
@@ -1554,5 +1555,539 @@ describe("isAliasCircular", () => {
     // Path to check: token-d -> token-e -> token-b -> token-c -> token-a (FOUND!)
     // This requires traversing 4 references to detect the cycle
     expect(isAliasCircular("token-a", "token-d", nodes)).toBe(true);
+  });
+});
+
+describe("resolveRawValue", () => {
+  const createNodesMap = (
+    nodes: TreeNode<TreeNodeMeta>[],
+  ): Map<string, TreeNode<TreeNodeMeta>> => {
+    const map = new Map<string, TreeNode<TreeNodeMeta>>();
+    for (const node of nodes) {
+      map.set(node.nodeId, node);
+    }
+    return map;
+  };
+
+  test("should return value directly for primitive tokens without references", () => {
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "color",
+        value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    };
+    const nodes = createNodesMap([]);
+    const resolved = resolveRawValue(token, nodes);
+    expect(resolved).toEqual({
+      type: "color",
+      value: { colorSpace: "srgb", components: [1, 0, 0] },
+    });
+  });
+
+  test("should resolve token reference to primitive token", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0, 0, 1] },
+      },
+    };
+    const aliasToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "brand",
+        type: "color",
+        value: { ref: "node1" },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors", type: "color" },
+    };
+    const nodes = createNodesMap([colorToken, colorsGroup]);
+    expect(resolveRawValue(aliasToken, nodes)).toEqual({
+      type: "color",
+      value: { colorSpace: "srgb", components: [0, 0, 1] },
+    });
+  });
+
+  test("should return composite token with unresolved component references", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "color-node",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "black",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors" },
+    };
+    const spacingToken: TreeNode<TokenMeta> = {
+      nodeId: "spacing-node",
+      parentId: "spacing-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "md",
+        type: "dimension",
+        value: { value: 4, unit: "px" },
+      },
+    };
+    const spacingGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "spacing-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "spacing" },
+    };
+    const shadowToken: TreeNode<TokenMeta> = {
+      nodeId: "shadow-node",
+      parentId: "shadows-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "shadow",
+        value: [
+          {
+            color: { ref: "color-node" },
+            offsetX: { ref: "spacing-node" },
+            offsetY: { ref: "spacing-node" },
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+            inset: false,
+          },
+        ],
+      },
+    };
+    const shadowsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "shadows-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "shadows" },
+    };
+    const nodes = createNodesMap([
+      colorToken,
+      colorsGroup,
+      spacingToken,
+      spacingGroup,
+      shadowToken,
+      shadowsGroup,
+    ]);
+    const resolved = resolveRawValue(shadowToken, nodes);
+    expect(resolved.type).toBe("shadow");
+    const shadowValue = resolved.value as Array<{
+      color: { ref: string } | { colorSpace: string; components: number[] };
+      offsetX: { ref: string } | { value: number; unit: string };
+      offsetY: { ref: string } | { value: number; unit: string };
+      blur: { value: number; unit: string };
+      spread: { value: number; unit: string };
+      inset: boolean;
+    }>;
+    // Component references should be unresolved (as NodeRef)
+    expect(shadowValue[0].color).toEqual({ ref: "color-node" });
+    expect(shadowValue[0].offsetX).toEqual({ ref: "spacing-node" });
+    expect(shadowValue[0].offsetY).toEqual({ ref: "spacing-node" });
+    // Direct values should remain as-is
+    expect(shadowValue[0].blur).toEqual({ value: 8, unit: "px" });
+    expect(shadowValue[0].spread).toEqual({ value: 0, unit: "px" });
+  });
+
+  test("should resolve alias to composite token and return it with unresolved references", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "color-node",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "gray",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors" },
+    };
+    const spacingToken: TreeNode<TokenMeta> = {
+      nodeId: "spacing-node",
+      parentId: "spacing-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "sm",
+        type: "dimension",
+        value: { value: 1, unit: "px" },
+      },
+    };
+    const spacingGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "spacing-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "spacing" },
+    };
+    const borderToken: TreeNode<TokenMeta> = {
+      nodeId: "border-node",
+      parentId: "borders-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "default",
+        type: "border",
+        value: {
+          color: { ref: "color-node" },
+          width: { ref: "spacing-node" },
+          style: "solid",
+        },
+      },
+    };
+    const bordersGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "borders-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "borders" },
+    };
+    const aliasBorderToken: TreeNode<TokenMeta> = {
+      nodeId: "alias-border-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primaryBorder",
+        type: "border",
+        value: { ref: "border-node" },
+      },
+    };
+    const nodes = createNodesMap([
+      colorToken,
+      colorsGroup,
+      spacingToken,
+      spacingGroup,
+      borderToken,
+      bordersGroup,
+      aliasBorderToken,
+    ]);
+    const resolved = resolveRawValue(aliasBorderToken, nodes);
+    expect(resolved.type).toBe("border");
+    const borderValue = resolved.value as {
+      color: { ref: string } | { colorSpace: string; components: number[] };
+      width: { ref: string } | { value: number; unit: string };
+      style: string;
+    };
+    // Component references should be unresolved
+    expect(borderValue.color).toEqual({ ref: "color-node" });
+    expect(borderValue.width).toEqual({ ref: "spacing-node" });
+    expect(borderValue.style).toBe("solid");
+  });
+
+  test("should compare raw vs deep resolution for composite tokens", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "color-node",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "black",
+        type: "color",
+        value: { colorSpace: "srgb", components: [0, 0, 0, 0.2] },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors" },
+    };
+    const spacingToken: TreeNode<TokenMeta> = {
+      nodeId: "spacing-node",
+      parentId: "spacing-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "md",
+        type: "dimension",
+        value: { value: 4, unit: "px" },
+      },
+    };
+    const spacingGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "spacing-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "spacing" },
+    };
+    const shadowToken: TreeNode<TokenMeta> = {
+      nodeId: "shadow-node",
+      parentId: "shadows-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "shadow",
+        value: [
+          {
+            color: { ref: "color-node" },
+            offsetX: { ref: "spacing-node" },
+            offsetY: { ref: "spacing-node" },
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+            inset: false,
+          },
+        ],
+      },
+    };
+    const shadowsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "shadows-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "shadows" },
+    };
+    const nodes = createNodesMap([
+      colorToken,
+      colorsGroup,
+      spacingToken,
+      spacingGroup,
+      shadowToken,
+      shadowsGroup,
+    ]);
+
+    // Deep resolution (resolveTokenValue) should resolve all references
+    const deepResolved = resolveTokenValue(shadowToken, nodes);
+    const deepShadowValue = deepResolved.value as Array<{
+      color: { colorSpace: string; components: number[] };
+      offsetX: { value: number; unit: string };
+      offsetY: { value: number; unit: string };
+      blur: { value: number; unit: string };
+      spread: { value: number; unit: string };
+      inset: boolean;
+    }>;
+    expect(deepShadowValue[0].color).toEqual({
+      colorSpace: "srgb",
+      components: [0, 0, 0, 0.2],
+    });
+    expect(deepShadowValue[0].offsetX).toEqual({ value: 4, unit: "px" });
+
+    // Shallow resolution should NOT resolve component refs
+    const rawValue = resolveRawValue(shadowToken, nodes);
+    const rawShadowValue = rawValue.value as Array<{
+      color: { ref: string };
+      offsetX: { ref: string };
+      offsetY: { ref: string };
+      blur: { value: number; unit: string };
+      spread: { value: number; unit: string };
+      inset: boolean;
+    }>;
+    expect(rawShadowValue[0].color).toEqual({ ref: "color-node" });
+    expect(rawShadowValue[0].offsetX).toEqual({ ref: "spacing-node" });
+  });
+
+  test("should detect circular reference with self-referencing token", () => {
+    const token: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "circular",
+        type: "color",
+        value: { ref: "node1" },
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const nodes = createNodesMap([token, group1]);
+    expect(() => resolveRawValue(token, nodes)).toThrow(
+      "Circular reference detected",
+    );
+  });
+
+  test("should detect circular reference between two tokens", () => {
+    const token1: TreeNode<TokenMeta> = {
+      nodeId: "node1",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        value: { ref: "node2" },
+      },
+    };
+    const token2: TreeNode<TokenMeta> = {
+      nodeId: "node2",
+      parentId: "group2",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenB",
+        type: "color",
+        value: { ref: "node1" },
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const group2: TreeNode<TreeNodeMeta> = {
+      nodeId: "group2",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group2" },
+    };
+    const nodes = createNodesMap([token1, token2, group1, group2]);
+    const testToken: TreeNode<TokenMeta> = {
+      nodeId: "test-node",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "test",
+        type: "color",
+        value: { ref: "node1" },
+      },
+    };
+    expect(() => resolveRawValue(testToken, nodes)).toThrow(
+      "Circular reference detected",
+    );
+  });
+
+  test("should detect circular reference in chained aliases", () => {
+    const tokenA: TreeNode<TokenMeta> = {
+      nodeId: "token-a",
+      parentId: "group1",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "tokenA",
+        type: "color",
+        value: { ref: "token-b" },
+      },
+    };
+    const tokenB: TreeNode<TokenMeta> = {
+      nodeId: "token-b",
+      parentId: "group1",
+      index: "a1",
+      meta: {
+        nodeType: "token",
+        name: "tokenB",
+        type: "color",
+        value: { ref: "token-c" },
+      },
+    };
+    const tokenC: TreeNode<TokenMeta> = {
+      nodeId: "token-c",
+      parentId: "group1",
+      index: "a2",
+      meta: {
+        nodeType: "token",
+        name: "tokenC",
+        type: "color",
+        value: { ref: "token-a" },
+      },
+    };
+    const group1: TreeNode<TreeNodeMeta> = {
+      nodeId: "group1",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "group1" },
+    };
+    const nodes = createNodesMap([tokenA, tokenB, tokenC, group1]);
+    expect(() => resolveRawValue(tokenA, nodes)).toThrow(
+      "Circular reference detected",
+    );
+  });
+
+  test("should detect circular reference that includes composite token", () => {
+    const colorToken: TreeNode<TokenMeta> = {
+      nodeId: "color-node",
+      parentId: "colors-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "primary",
+        type: "color",
+        value: { ref: "alias-shadow" },
+      },
+    };
+    const colorsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "colors-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "colors" },
+    };
+    const shadowToken: TreeNode<TokenMeta> = {
+      nodeId: "shadow-node",
+      parentId: "shadows-group",
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "shadow",
+        type: "shadow",
+        value: [
+          {
+            color: { colorSpace: "srgb", components: [0, 0, 0] },
+            offsetX: { value: 1, unit: "px" },
+            offsetY: { value: 1, unit: "px" },
+            blur: { value: 1, unit: "px" },
+            spread: { value: 1, unit: "px" },
+            inset: false,
+          },
+        ],
+      },
+    };
+    const shadowsGroup: TreeNode<TreeNodeMeta> = {
+      nodeId: "shadows-group",
+      parentId: undefined,
+      index: "a0",
+      meta: { nodeType: "token-group", name: "shadows" },
+    };
+    const aliasShadow: TreeNode<TokenMeta> = {
+      nodeId: "alias-shadow",
+      parentId: undefined,
+      index: "a0",
+      meta: {
+        nodeType: "token",
+        name: "aliasShadow",
+        type: "shadow",
+        value: { ref: "color-node" },
+      },
+    };
+    const nodes = createNodesMap([
+      colorToken,
+      colorsGroup,
+      shadowToken,
+      shadowsGroup,
+      aliasShadow,
+    ]);
+    expect(() => resolveRawValue(colorToken, nodes)).toThrow(
+      "Circular reference detected",
+    );
   });
 });

@@ -1,15 +1,16 @@
 <script lang="ts">
   import { Plus, X } from "@lucide/svelte";
   import { parseColor, serializeColor } from "./color";
-  import type { GradientValue } from "./schema";
+  import type { GradientValue, RawGradientValue } from "./schema";
+  import AliasToken from "./alias-token.svelte";
 
   interface Props {
     value: GradientValue;
-    onChange: (value: GradientValue) => void;
-    disabled?: boolean;
+    rawValue: RawGradientValue;
+    onChange: (value: RawGradientValue) => void;
   }
 
-  const { value, onChange, disabled = false }: Props = $props();
+  const { value, rawValue, onChange }: Props = $props();
 
   const handleAddStop = () => {
     // Add a new stop at the end with a slightly different color
@@ -33,19 +34,21 @@
     onChange(updated);
   };
 
-  const handleStopColorChange = (index: number, colorString: string) => {
-    const updated = [...value];
-    updated[index].color = parseColor(colorString);
-    onChange(updated);
+  const updateItem = (
+    index: number,
+    item: Partial<RawGradientValue[number]>,
+  ) => {
+    const newGradient = [...rawValue];
+    newGradient[index] = { ...newGradient[index], ...item };
+    // Re-sort by position
+    newGradient.sort((a, b) => a.position - b.position);
+    onChange(newGradient);
   };
 
   const handleStopPositionChange = (index: number, position: number) => {
-    if (position < 0 || position > 1) return;
-    const updated = [...value];
-    updated[index].position = position;
-    // Re-sort by position
-    updated.sort((a, b) => a.position - b.position);
-    onChange(updated);
+    if (0 <= position && position <= 1) {
+      updateItem(index, { position });
+    }
   };
 
   const generateGradientPreview = (): string => {
@@ -67,19 +70,28 @@
 
   <div class="gradient-stops-list">
     {#each value as stop, index (index)}
+      {@const rawStop = rawValue[index]}
       <div class="gradient-stop-row">
-        <color-input
-          value={serializeColor(stop.color)}
-          {disabled}
-          onopen={(event: InputEvent) => {
-            const input = event.target as HTMLInputElement;
-            handleStopColorChange(index, input.value);
-          }}
-          onclose={(event: InputEvent) => {
-            const input = event.target as HTMLInputElement;
-            handleStopColorChange(index, input.value);
-          }}
-        ></color-input>
+        <div class="color-with-alias">
+          <color-input
+            value={serializeColor(stop.color)}
+            onopen={(event: InputEvent) => {
+              const input = event.target as HTMLInputElement;
+              updateItem(index, { color: parseColor(input.value) });
+            }}
+            onclose={(event: InputEvent) => {
+              const input = event.target as HTMLInputElement;
+              updateItem(index, { color: parseColor(input.value) });
+            }}
+          ></color-input>
+          <AliasToken
+            type="color"
+            value={rawStop.color}
+            onChange={(color) => {
+              updateItem(index, { color: color ?? stop.color });
+            }}
+          />
+        </div>
 
         <div class="position-input-group">
           <input
@@ -89,12 +101,11 @@
             min="0"
             max="1"
             step="0.01"
-            {disabled}
             value={stop.position}
-            oninput={(e) => {
-              const val = Number.parseFloat(e.currentTarget.value);
-              if (!Number.isNaN(val)) {
-                handleStopPositionChange(index, val);
+            oninput={(event) => {
+              const value = Number.parseFloat(event.currentTarget.value);
+              if (!Number.isNaN(value)) {
+                handleStopPositionChange(index, value);
               }
             }}
           />
@@ -104,12 +115,11 @@
             min="0"
             max="1"
             step="0.01"
-            {disabled}
             value={(stop.position * 100).toFixed(1)}
-            oninput={(e) => {
-              const val = Number.parseFloat(e.currentTarget.value);
-              if (!Number.isNaN(val)) {
-                handleStopPositionChange(index, val / 100);
+            oninput={(event) => {
+              const value = Number.parseFloat(event.currentTarget.value);
+              if (!Number.isNaN(value)) {
+                handleStopPositionChange(index, value / 100);
               }
             }}
           />
@@ -120,7 +130,6 @@
           <button
             class="a-button"
             aria-label="Remove stop"
-            {disabled}
             onclick={() => handleRemoveStop(index)}
           >
             <X size={16} />
@@ -129,7 +138,7 @@
       </div>
     {/each}
 
-    <button class="a-button" {disabled} onclick={handleAddStop}>
+    <button class="a-button" onclick={handleAddStop}>
       <Plus size={16} /> Add Stop
     </button>
   </div>
@@ -157,7 +166,7 @@
 
   .gradient-stop-row {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: max-content 1fr auto;
     gap: 8px;
     align-items: center;
   }
@@ -168,6 +177,12 @@
 
   color-input::part(input) {
     display: none;
+  }
+
+  .color-with-alias {
+    display: grid;
+    gap: 4px;
+    grid-template-columns: max-content max-content;
   }
 
   .position-input-group {

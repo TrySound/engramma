@@ -6,7 +6,7 @@ import {
   type RawValueWithReference,
   type Value,
   type NodeRef,
-  ValueSchema,
+  RawValueSchema,
   isNodeRef,
 } from "./schema";
 import { serializeDesignTokens } from "./tokens";
@@ -82,6 +82,76 @@ const getToken = (
   return tokenNode;
 };
 
+/**
+ * Resolves token references but does NOT resolve composite component values.
+ * This is useful when you want the raw value of a composite token without
+ * resolving its internal component references.
+ *
+ * For example, a border token with component references will return the raw
+ * border value with unresolved references, rather than resolving each component.
+ *
+ * Returns a RawValue which may contain unresolved NodeRef objects in composite types.
+ */
+export const resolveRawValue = (
+  node: TreeNode<TreeNodeMeta>,
+  nodes: Map<string, TreeNode<TreeNodeMeta>>,
+  resolvingStack: Set<string> = new Set(),
+): RawValue => {
+  const ctx = { nodes, resolvingStack };
+  if (node.meta.nodeType !== "token") {
+    throw new Error("resolveRawValue requires a token node");
+  }
+  // Check if value is a token reference string
+  if (isNodeRef(node.meta.value)) {
+    const tokenNode = getToken(ctx, node.meta.value);
+    // resolve token reference but stop at first non-reference
+    const newStack = new Set(resolvingStack);
+    const nodeId = node.meta.value.ref;
+    if (nodeId) {
+      newStack.add(nodeId);
+    }
+    const resolvedValue = resolveRawValue(tokenNode, nodes, newStack);
+    const parsed = RawValueSchema.safeParse(resolvedValue);
+    if (!parsed.success) {
+      throw Error(formatError(parsed.error)._errors.join("\n"));
+    }
+    return resolvedValue;
+  }
+  switch (node.meta.type) {
+    // composite tokens
+    case "transition":
+      return { type: "transition", value: node.meta.value };
+    case "border":
+      return { type: "border", value: node.meta.value };
+    case "shadow":
+      return { type: "shadow", value: node.meta.value };
+    case "typography":
+      return { type: "typography", value: node.meta.value };
+    case "gradient":
+      return { type: "gradient", value: node.meta.value };
+    // primitive tokens
+    case "number":
+      return { type: node.meta.type, value: node.meta.value };
+    case "color":
+      return { type: node.meta.type, value: node.meta.value };
+    case "dimension":
+      return { type: node.meta.type, value: node.meta.value };
+    case "duration":
+      return { type: node.meta.type, value: node.meta.value };
+    case "cubicBezier":
+      return { type: node.meta.type, value: node.meta.value };
+    case "fontFamily":
+      return { type: node.meta.type, value: node.meta.value };
+    case "fontWeight":
+      return { type: node.meta.type, value: node.meta.value };
+    case "strokeStyle":
+      return { type: node.meta.type, value: node.meta.value };
+    default:
+      node.meta satisfies never;
+      throw Error("Unexpected case");
+  }
+};
+
 const resolveRef = <
   Input extends RawValue,
   Output extends Extract<Value, { type: Input["type"] }>["value"],
@@ -124,30 +194,11 @@ export const resolveTokenValue = (
   resolvingStack: Set<string> = new Set(),
 ): Value => {
   const ctx = { nodes, resolvingStack };
-  if (node.meta.nodeType !== "token") {
-    throw new Error("resolveTokenValue requires a token node");
-  }
-  // Check if value is a token reference string
-  // If not a reference, resolve composite components if needed
-  if (isNodeRef(node.meta.value)) {
-    const tokenNode = getToken(ctx, node.meta.value);
-    // resolve token further if it's also a reference
-    const newStack = new Set(resolvingStack);
-    const nodeId = node.meta.value.ref;
-    if (nodeId) {
-      newStack.add(nodeId);
-    }
-    const resolvedValue = resolveTokenValue(tokenNode, nodes, newStack);
-    const parsed = ValueSchema.safeParse(resolvedValue);
-    if (!parsed.success) {
-      throw Error(formatError(parsed.error)._errors.join("\n"));
-    }
-    return resolvedValue;
-  }
+  const rawValue = resolveRawValue(node, nodes, resolvingStack);
   // Resolve any component-level references in composite values
-  switch (node.meta.type) {
+  switch (rawValue.type) {
     case "transition": {
-      const { value } = node.meta;
+      const { value } = rawValue;
       return {
         type: "transition",
         value: {
@@ -158,7 +209,7 @@ export const resolveTokenValue = (
       };
     }
     case "border": {
-      const { value } = node.meta;
+      const { value } = rawValue;
       return {
         type: "border",
         value: {
@@ -171,7 +222,7 @@ export const resolveTokenValue = (
     case "shadow":
       return {
         type: "shadow",
-        value: node.meta.value.map((shadow) => ({
+        value: rawValue.value.map((shadow) => ({
           color: resolveRef(ctx, "color", shadow.color),
           offsetX: resolveRef(ctx, "dimension", shadow.offsetX),
           offsetY: resolveRef(ctx, "dimension", shadow.offsetY),
@@ -181,7 +232,7 @@ export const resolveTokenValue = (
         })),
       };
     case "typography": {
-      const { value } = node.meta;
+      const { value } = rawValue;
       return {
         type: "typography",
         value: {
@@ -196,30 +247,23 @@ export const resolveTokenValue = (
     case "gradient":
       return {
         type: "gradient",
-        value: node.meta.value.map((gradient) => ({
+        value: rawValue.value.map((gradient) => ({
           color: resolveRef(ctx, "color", gradient.color),
           position: gradient.position,
         })),
       };
     // primitive tokens
     case "number":
-      return { type: node.meta.type, value: node.meta.value };
     case "color":
-      return { type: node.meta.type, value: node.meta.value };
     case "dimension":
-      return { type: node.meta.type, value: node.meta.value };
     case "duration":
-      return { type: node.meta.type, value: node.meta.value };
     case "cubicBezier":
-      return { type: node.meta.type, value: node.meta.value };
     case "fontFamily":
-      return { type: node.meta.type, value: node.meta.value };
     case "fontWeight":
-      return { type: node.meta.type, value: node.meta.value };
     case "strokeStyle":
-      return { type: node.meta.type, value: node.meta.value };
+      return rawValue;
     default:
-      node.meta satisfies never;
+      rawValue satisfies never;
       throw Error("Unexpected case");
   }
 };

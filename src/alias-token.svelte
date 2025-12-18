@@ -5,22 +5,24 @@
     resolveTokenValue,
     isAliasCircular,
   } from "./state.svelte";
-  import type { NodeRef, Value } from "./schema";
+  import { isNodeRef, type NodeRef, type RawValue, type Value } from "./schema";
 
   let {
     nodeId,
     type,
-    nodeRef,
+    value,
     onChange,
   }: {
-    /** makes sure alias is not circular  */
-    nodeId: string;
+    /** makes sure alias is not circular, optional for composite components */
+    nodeId?: string;
     /** shows tokens only for specified type */
     type: Value["type"];
-    nodeRef: undefined | NodeRef;
+    value: NodeRef | RawValue["value"];
     onChange: (newNodeRef: undefined | NodeRef) => void;
   } = $props();
   const key = $props.id();
+
+  const nodeRef = $derived(isNodeRef(value) ? value : undefined);
 
   let aliasSearchInput = $state("");
   let highlightedIndex = $state(0);
@@ -49,7 +51,8 @@
           // Filter by type compatibility and check for circular dependencies
           return (
             otherTokenType === type &&
-            !isAliasCircular(nodeId, item.nodeId, nodes)
+            // composites can safely avoid circular check
+            (!nodeId || !isAliasCircular(nodeId, item.nodeId, nodes))
           );
         }
         return false;
