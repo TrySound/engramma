@@ -133,9 +133,9 @@ color-input::part(trigger) {
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  background-color: transparent;
+  background-color: oklch(from var(--bg-primary) l c h / 50%);
   border-radius: 4px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   transition: all 0.2s ease;
   font-family: inherit;
   font-size: 14px;

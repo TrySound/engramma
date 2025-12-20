@@ -39,7 +39,10 @@ export const toStrokeStyleValue = (value: StrokeStyleValue) => {
   return typeof value === "string" ? value : "solid";
 };
 
-const referenceToVariable = (
+/**
+ * Generate CSS variable name a token reference
+ */
+export const referenceToVariable = (
   nodeRef: NodeRef,
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ): string => {

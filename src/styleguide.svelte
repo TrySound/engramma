@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { noCase } from "change-case";
+  import { titleCase } from "title-case";
   import type { TokenMeta, TreeNodeMeta } from "./state.svelte";
   import { treeState, resolveTokenValue } from "./state.svelte";
   import type { TreeNode } from "./store";
@@ -9,6 +11,7 @@
     StrokeStyleValue,
   } from "./schema";
   import {
+    referenceToVariable,
     toCubicBezierValue,
     toDimensionValue,
     toDurationValue,
@@ -17,8 +20,7 @@
     toShadowValue,
     toStrokeStyleValue,
   } from "./css-variables";
-  import { noCase } from "change-case";
-  import { titleCase } from "title-case";
+  import CopyButton from "./copy-button.svelte";
 
   const { selectedItems }: { selectedItems: Set<string> } = $props();
 
@@ -206,6 +208,16 @@
   {/if}
 {/snippet}
 
+{#snippet copyButton(node: TreeNode<TreeNodeMeta>)}
+  {@const cssVariable = referenceToVariable(
+    { ref: node.nodeId },
+    treeState.nodes(),
+  )}
+  <div class="copy-css-button">
+    <CopyButton label="Copy CSS Variable" data={cssVariable} />
+  </div>
+{/snippet}
+
 {#snippet tokenCard(
   node: TreeNode<TreeNodeMeta>,
   tokenMeta: TokenMeta,
@@ -217,6 +229,7 @@
       {@const color = serializeColor(tokenValue.value)}
       <div class="token-preview">
         <div class="color-preview" style="background: {color};"></div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -230,6 +243,7 @@
         <div class="dimension-preview" style:--value={value}>
           <div class="dimension-bar"></div>
         </div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -244,6 +258,7 @@
           cubicBezier: [0, 0, 1, 1],
           duration: tokenValue.value,
         })}
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -259,6 +274,7 @@
           id: `styleguide-cubic-bezier-${index}`,
           cubicBezier: tokenValue.value,
         })}
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -281,6 +297,7 @@
         <div class="typography-preview" style="font-family: {fontFamily};">
           The quick brown fox jumps over 12 lazy dogs.
         </div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -294,6 +311,7 @@
         <div class="typography-preview" style="font-weight: {weight};">
           The quick brown fox jumps over 12 lazy dogs.
         </div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -310,6 +328,7 @@
           delay: transition.delay,
           cubicBezier: transition.timingFunction,
         })}
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -335,6 +354,7 @@
         >
           The quick brown fox jumps over 12 lazy dogs.
         </div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -355,6 +375,7 @@
           class="gradient-preview"
           style="background-image: {gradient};"
         ></div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -375,6 +396,7 @@
           class="shadow-preview"
           style="box-shadow: {toShadowValue(tokenValue.value, new Map())};"
         ></div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -398,6 +420,7 @@
           class="border-preview"
           style="border: {width} {style} {color};"
         ></div>
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -412,6 +435,7 @@
     {#if tokenValue.type === "strokeStyle"}
       <div class="token-preview">
         {@render strokeStylePreview(tokenValue.value)}
+        {@render copyButton(node)}
       </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
@@ -517,12 +541,22 @@
     margin-bottom: 30px;
   }
 
+  .copy-css-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    visibility: hidden;
+    opacity: 0;
+    transition: all 0.3s;
+  }
+
   .token-card {
     background: white;
     overflow: clip;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    transition: all 0.3s;
 
     &[data-deprecated="true"] {
       opacity: 0.5;
@@ -531,6 +565,11 @@
     &:hover {
       opacity: 1;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+
+      .copy-css-button {
+        visibility: visible;
+        opacity: 1;
+      }
     }
   }
 

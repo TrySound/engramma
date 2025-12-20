@@ -6,6 +6,7 @@
   import "prismjs/components/prism-scss";
   import "prismjs/themes/prism-tomorrow.min.css";
   import type { HTMLAttributes } from "svelte/elements";
+  import CopyButton from "./copy-button.svelte";
 
   interface Props extends HTMLAttributes<HTMLPreElement> {
     code: string;
@@ -14,29 +15,15 @@
 
   let { code, language }: Props = $props();
 
-  let copyFeedback = $state(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      copyFeedback = true;
-      setTimeout(() => {
-        copyFeedback = false;
-      }, 2000);
-    } catch (error) {
-      console.error("Failed to copy code", error);
-    }
-  };
-
   const highlightedCode = $derived(
     Prism.highlight(code, Prism.languages[language], language),
   );
 </script>
 
 <div class="code-container">
-  <button class="a-button" onclick={handleCopy}>
-    {copyFeedback ? "Copied!" : "Copy"}
-  </button>
+  <div class="copy-button">
+    <CopyButton label="Copy" data={code} />
+  </div>
   <pre><code class="language-{language}">{@html highlightedCode}</code></pre>
 </div>
 
@@ -47,10 +34,10 @@
     display: grid;
   }
 
-  .a-button {
+  .copy-button {
     position: absolute;
-    top: 8px;
-    right: 12px;
+    top: 12px;
+    right: 16px;
   }
 
   pre {
