@@ -44,6 +44,9 @@
     }
     return visibleNodes;
   });
+
+  const typographyPlaceholder =
+    "The quick brown fox jumps over 12 lazy dogs. Sphinx of black quartz, judge my vow.";
 </script>
 
 {#snippet cubicBezierPreview({
@@ -196,6 +199,36 @@
   {/if}
 {/snippet}
 
+{#snippet numberPreview({
+  tokens,
+  value,
+}: {
+  tokens: Array<number>;
+  value: number;
+})}
+  {#if tokens.length > 0}
+    {@const min = Math.min(0, ...tokens)}
+    {@const max = Math.max(0, ...tokens)}
+    {@const zeroPoint = (0 - min) / (max - min)}
+    {@const size = Math.abs((value - min) / (max - min) - zeroPoint)}
+    <div class="number-zero-point" style:--position={zeroPoint}></div>
+    {#if value < 0}
+      <div
+        class="number-bar-negative"
+        style:--position={zeroPoint}
+        style:--size={size}
+      ></div>
+    {/if}
+    {#if value > 0}
+      <div
+        class="number-bar-positive"
+        style:--position={zeroPoint}
+        style:--size={size}
+      ></div>
+    {/if}
+  {/if}
+{/snippet}
+
 {#snippet metadata(tokenMeta: TokenMeta)}
   <div class="token-name">{titleCase(noCase(tokenMeta.name))}</div>
   {#if tokenMeta.description}
@@ -224,6 +257,7 @@
   node: TreeNode<TreeNodeMeta>,
   tokenMeta: TokenMeta,
   index: number,
+  parentId?: string,
 )}
   {@const tokenValue = resolveTokenValue(node, treeState.nodes())}
   <div class="token-card" data-deprecated={Boolean(tokenMeta.deprecated)}>
@@ -287,6 +321,23 @@
     {/if}
 
     {#if tokenValue.type === "number"}
+      {@const groupTokens = parentId
+        ? treeState
+            .getChildren(parentId)
+            .filter((n) => n.meta.nodeType === "token")
+            .map((n) => {
+              const val = resolveTokenValue(n, treeState.nodes());
+              return val.type === "number" ? val.value : null;
+            })
+            .filter((v) => v !== null)
+        : [tokenValue.value]}
+      <div class="token-preview">
+        {@render numberPreview({
+          tokens: groupTokens,
+          value: tokenValue.value,
+        })}
+        {@render copyButton(node)}
+      </div>
       <div class="token-content">
         {@render metadata(tokenMeta)}
         <div class="token-value">Number: {tokenValue.value}</div>
@@ -297,7 +348,7 @@
       {@const fontFamily = toFontFamilyValue(tokenValue.value)}
       <div class="token-preview">
         <div class="typography-preview" style="font-family: {fontFamily};">
-          The quick brown fox jumps over 12 lazy dogs.
+          {typographyPlaceholder}
         </div>
         {@render copyButton(node)}
       </div>
@@ -311,7 +362,7 @@
       {@const weight = tokenValue.value}
       <div class="token-preview">
         <div class="typography-preview" style="font-weight: {weight};">
-          The quick brown fox jumps over 12 lazy dogs.
+          {typographyPlaceholder}
         </div>
         {@render copyButton(node)}
       </div>
@@ -354,7 +405,7 @@
           line-height: {typo.lineHeight};
           letter-spacing: {toDimensionValue(typo.letterSpacing)};"
         >
-          The quick brown fox jumps over 12 lazy dogs.
+          {typographyPlaceholder}
         </div>
         {@render copyButton(node)}
       </div>
@@ -474,7 +525,7 @@
     <div class="token-grid">
       {#each tokens as node, index (node.nodeId)}
         {#if node.meta.nodeType === "token"}
-          {@render tokenCard(node, node.meta, index)}
+          {@render tokenCard(node, node.meta, index, parentId)}
         {/if}
       {/each}
     </div>
@@ -713,6 +764,32 @@
     inset: 0;
     width: 100%;
     height: 100%;
+  }
+
+  .number-zero-point {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--position) * 100%);
+    border-right: 1px solid black;
+  }
+
+  .number-bar-positive {
+    position: absolute;
+    top: 45%;
+    left: calc(var(--position) * 100%);
+    width: calc(var(--size) * 100%);
+    height: 10%;
+    background-color: green;
+  }
+
+  .number-bar-negative {
+    position: absolute;
+    top: 45%;
+    right: calc((1 - var(--position)) * 100%);
+    width: calc(var(--size) * 100%);
+    height: 10%;
+    background-color: red;
   }
 
   .shadow-preview {
