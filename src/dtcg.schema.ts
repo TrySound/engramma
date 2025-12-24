@@ -209,6 +209,7 @@ export type CubicBezierValue = z.infer<typeof cubicBezierValue>;
 export type StrokeStyleValue = z.infer<typeof strokeStyleValue>;
 export type BorderValue = z.infer<typeof borderValue>;
 export type TransitionValue = z.infer<typeof transitionValue>;
+export type ShadowObject = z.infer<typeof shadowObject>;
 export type ShadowValue = z.infer<typeof shadowValue>;
 export type GradientValue = z.infer<typeof gradientValue>;
 export type TypographyValue = z.infer<typeof typographyValue>;

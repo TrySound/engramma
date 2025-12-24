@@ -1,7 +1,13 @@
 import { kebabCase, noCase } from "change-case";
 import { compareTreeNodes, type TreeNode } from "./store";
 import { type GroupMeta, type TokenMeta } from "./state.svelte";
-import { serializeColor } from "./color";
+import { serializeColor, parseColor } from "./color";
+import type {
+  ColorValue,
+  GradientValue,
+  ShadowObject,
+  Token,
+} from "./dtcg.schema";
 import {
   type CubicBezierValue,
   type DimensionValue,
@@ -276,4 +282,399 @@ export const generateCssVariables = (
   }
   lines.push("}");
   return lines.join("\n");
+};
+
+/**
+ * Split by character like space or comma ignoring internals of functions
+ */
+const splitBy = (value: string, separator: string | RegExp) => {
+  const parts: string[] = [];
+  let currentPart = "";
+  let depth = 0;
+  for (const character of value) {
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+    } else if (
+      depth === 0 &&
+      currentPart &&
+      (character === separator || character.match(separator))
+    ) {
+      parts.push(currentPart.trim());
+      currentPart = "";
+      continue;
+    }
+    currentPart += character;
+  }
+  if (currentPart.trim()) {
+    parts.push(currentPart.trim());
+  }
+  return parts;
+};
+
+const parseAliasValue = (value: string): undefined | string => {
+  const match = value.match(/^var\(--([a-zA-Z0-9_-]+)\)$/);
+  if (match) {
+    return `{${match[1]}}`;
+  }
+};
+
+const parseAliasToken = (value: string): undefined | Token => {
+  const alias = parseAliasValue(value);
+  if (alias) {
+    return {
+      $value: alias,
+    };
+  }
+};
+
+const parseColorValue = (value: string): undefined | ColorValue => {
+  const colorValue = parseColor(value);
+  // Check if valid color (not the fallback transparent from failed parse)
+  // parseColor returns transparent {colorSpace: "srgb", components: [0,0,0], alpha: 0} on parse failure
+  // We want to accept it only if the input was actually "transparent"
+  const isValidColor =
+    colorValue.alpha !== 0 ||
+    value.toLowerCase() === "transparent" ||
+    colorValue.components.some((c) => c !== 0);
+  if (isValidColor) {
+    return colorValue;
+  }
+};
+
+const parseColorToken = (value: string): undefined | Token => {
+  const colorValue = parseColorValue(value);
+  if (colorValue) {
+    return { $type: "color", $value: colorValue };
+  }
+};
+
+const parseDimensionValue = (value: string): undefined | DimensionValue => {
+  const match = value.match(/^([\d.-]+)(px|rem)$/);
+  if (!match) {
+    return;
+  }
+  return {
+    value: Number.parseFloat(match[1]),
+    unit: match[2] as "px" | "rem",
+  };
+};
+
+const parseDimensionToken = (value: string): undefined | Token => {
+  const dimension = parseDimensionValue(value);
+  if (dimension) {
+    return { $type: "dimension", $value: dimension };
+  }
+};
+
+const parseDurationValue = (value: string): undefined | DurationValue => {
+  const match = value.match(/^([\d.-]+)(ms|s)$/);
+  if (!match) {
+    return;
+  }
+  return {
+    value: Number.parseFloat(match[1]),
+    unit: match[2] as "ms" | "s",
+  };
+};
+
+const parseDurationToken = (value: string): undefined | Token => {
+  const duration = parseDurationValue(value);
+  if (duration) {
+    return { $type: "duration", $value: duration };
+  }
+};
+
+const parseFontWeightToken = (value: string): undefined | Token => {
+  // Try font-weight detection (1-1000, but only specific common values)
+  const match = value.match(/^(\d+)$/);
+  if (match) {
+    const weight = Number.parseInt(match[1], 10);
+    // Only treat as font-weight if it's a common weight value
+    if (weight >= 100 && weight <= 900 && weight % 100 === 0) {
+      return {
+        $type: "fontWeight",
+        $value: weight,
+      };
+    }
+  }
+};
+
+const parseNumberToken = (value: string): undefined | Token => {
+  // Try number detection (plain numeric values)
+  const match = value.match(/^-?[\d.]+$/);
+  if (match) {
+    const num = Number.parseFloat(value);
+    if (!Number.isNaN(num)) {
+      return {
+        $type: "number",
+        $value: num,
+      };
+    }
+  }
+};
+
+const parseCubicBezierValue = (value: string): undefined | CubicBezierValue => {
+  const match = value.match(
+    /^cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)$/,
+  );
+  if (match) {
+    return [
+      Number.parseFloat(match[1]),
+      Number.parseFloat(match[2]),
+      Number.parseFloat(match[3]),
+      Number.parseFloat(match[4]),
+    ];
+  }
+};
+
+const parseCubicBezierToken = (value: string): undefined | Token => {
+  const cubicBezier = parseCubicBezierValue(value);
+  if (cubicBezier) {
+    return { $type: "cubicBezier", $value: cubicBezier };
+  }
+};
+
+/**
+ * Parse single shadow value
+ */
+const parseShadowItem = (value: string): undefined | ShadowObject => {
+  const parts = splitBy(value, /\s+/);
+  const inset = parts.some((part) => part === "inset");
+  const color = parts
+    .map((part) => parseAliasValue(part) ?? parseColorValue(part))
+    .filter((item) => item !== undefined)
+    .at(0);
+  const dimensions = parts
+    .map(parseDimensionValue)
+    .filter((item) => item !== undefined);
+  const offsetX = dimensions.at(0);
+  const offsetY = dimensions.at(1);
+  const blur = dimensions.at(2);
+  const spread = dimensions.at(3);
+  if (!offsetX || !offsetY) {
+    return;
+  }
+  const shadow: ShadowObject = {
+    color: color ?? { colorSpace: "srgb", components: [0, 0, 0] },
+    offsetX,
+    offsetY,
+    blur: blur ?? { value: 0, unit: "px" },
+    spread: spread ?? { value: 0, unit: "px" },
+  };
+  if (inset) {
+    shadow.inset = true;
+  }
+  return shadow;
+};
+
+const parseShadowToken = (value: string): undefined | Token => {
+  // Handle multiple shadows separated by commas (not inside functions)
+  const shadows = splitBy(value, ",");
+  const parsedShadows = shadows
+    .map(parseShadowItem)
+    .filter((item) => item !== undefined);
+  if (parsedShadows.length === 0) {
+    return;
+  }
+  return {
+    $type: "shadow",
+    $value: parsedShadows.length === 1 ? parsedShadows[0] : parsedShadows,
+  };
+};
+
+/**
+ * Parse border value into DTCG border format
+ */
+const parseBorderToken = (value: string): undefined | Token => {
+  // Border format: width style color
+  const parts = splitBy(value, /\s+/);
+  if (parts.length !== 3) {
+    return;
+  }
+  // Check for style keyword
+  const styleKeywords = [
+    "solid",
+    "dashed",
+    "dotted",
+    "double",
+    "groove",
+    "ridge",
+    "inset",
+    "outset",
+  ];
+  const style = parts.find((p) => styleKeywords.includes(p));
+  if (!style) {
+    return;
+  }
+  const aliases = parts
+    .map(parseAliasValue)
+    .filter((item) => item !== undefined);
+  const width = parts.map(parseDimensionValue).at(0);
+  const color = parts.map(parseColorValue).at(0);
+  return {
+    $type: "border",
+    $value: {
+      width: width ?? aliases.at(0) ?? { value: 0, unit: "px" },
+      style,
+      color: color ??
+        aliases.at(1) ??
+        aliases.at(0) ?? { colorSpace: "srgb", components: [0, 0, 0] },
+    },
+  };
+};
+
+const parseTransition = (value: string): undefined | Token => {
+  const parts = splitBy(value, /\s+/);
+  const durations = parts
+    .map(parseDurationValue)
+    .filter((item) => item !== undefined);
+  const aliases = parts
+    .map(parseAliasValue)
+    .filter((item) => item !== undefined);
+  const duration = durations.at(0) ?? aliases.at(0);
+  const timingFunction =
+    parts.map(parseCubicBezierValue).find((item) => item !== undefined) ??
+    aliases.at(1) ??
+    aliases.at(0);
+  const delay = durations.at(1);
+  if (!duration || !timingFunction) {
+    return;
+  }
+  return {
+    $type: "transition",
+    $value: {
+      duration,
+      delay: delay ?? { value: 0, unit: "ms" },
+      timingFunction,
+    },
+  };
+};
+
+const parseGradientToken = (value: string): undefined | Token => {
+  // Only support linear-gradient for now
+  const linearMatch = value.match(
+    /^linear-gradient\(\s*([^,]+)\s*,\s*(.+)\s*\)$/,
+  );
+  if (!linearMatch) {
+    return;
+  }
+  const stops: GradientValue = [];
+  // Split by comma (not inside functions)
+  const stopParts = splitBy(linearMatch[2], ",");
+
+  // Parse each stop
+  for (let i = 0; i < stopParts.length; i++) {
+    const stop = stopParts[i].trim();
+    // Format: color position%
+    const parts = splitBy(stop, /\s+/);
+    if (parts.length === 0) {
+      continue;
+    }
+    const color = parts
+      .map((part) => parseColorValue(part) ?? parseAliasValue(part))
+      .find((item) => item !== undefined);
+    if (!color) {
+      continue;
+    }
+    const position = parts
+      .map((part) =>
+        part.includes("%") ? Number.parseFloat(part) / 100 : undefined,
+      )
+      .at(0);
+    stops.push({
+      color,
+      position: position ?? i / (stopParts.length - 1),
+    });
+  }
+  if (stops.length === 0) {
+    return;
+  }
+  return { $type: "gradient", $value: stops };
+};
+
+const parseFontFamily = (value: string): undefined | Token => {
+  // Try font-family detection (contains commas outside of functions, or quotes)
+  // Check for commas but make sure they're not inside functions like cubic-bezier()
+  if (value.includes('"') || value.includes("'")) {
+    const families = value
+      .split(",")
+      .map((f) => f.trim().replace(/^["']|["']$/g, ""));
+    if (families.length > 1) {
+      return {
+        $type: "fontFamily",
+        $value: families,
+      };
+    } else if (families.length === 1) {
+      return {
+        $type: "fontFamily",
+        $value: families[0],
+      };
+    }
+  }
+  // Check for commas, but only if not part of a function
+  if (value.includes(",") && !value.includes("(")) {
+    const families = value
+      .split(",")
+      .map((f) => f.trim().replace(/^["']|["']$/g, ""));
+    if (families.length > 1) {
+      return {
+        $type: "fontFamily",
+        $value: families,
+      };
+    }
+  }
+};
+
+/**
+ * Parse CSS variables string and convert to DTCG format
+ */
+export const parseCssVariables = (input: string): Record<string, Token> => {
+  // Extract variable declarations from input
+  let cssText = input.trim();
+  // Remove /* comments */
+  cssText = cssText.replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, "");
+  // Remove :root wrapper if present
+  const rootMatch = cssText.match(/:root\s*\{([^}]*)\}/s);
+  if (rootMatch) {
+    cssText = rootMatch[1];
+  }
+  const result: Record<string, Token> = {};
+  // Split by semicolon and parse each declaration
+  const declarations = cssText
+    .split(";")
+    .map((d) => d.trim())
+    .filter(Boolean);
+  for (const decl of declarations) {
+    const colonIndex = decl.indexOf(":");
+    if (colonIndex === -1) {
+      continue;
+    }
+    const propertyName = decl.slice(0, colonIndex).trim();
+    const propertyValue = decl.slice(colonIndex + 1).trim();
+    if (!propertyName.startsWith("--")) {
+      continue;
+    }
+    const tokenName = propertyName.slice(2); // Remove '--' prefix
+    // Try to detect type and parse value
+    const token =
+      parseAliasToken(propertyValue) ??
+      parseColorToken(propertyValue) ??
+      parseDimensionToken(propertyValue) ??
+      parseDurationToken(propertyValue) ??
+      parseFontWeightToken(propertyValue) ??
+      parseNumberToken(propertyValue) ??
+      parseCubicBezierToken(propertyValue) ??
+      parseShadowToken(propertyValue) ??
+      parseBorderToken(propertyValue) ??
+      parseTransition(propertyValue) ??
+      parseGradientToken(propertyValue) ??
+      parseFontWeightToken(propertyValue) ??
+      parseFontFamily(propertyValue);
+    if (token) {
+      result[tokenName] = token;
+    }
+  }
+  return result;
 };

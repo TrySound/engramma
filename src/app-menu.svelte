@@ -3,6 +3,7 @@
   import { treeState } from "./state.svelte";
   import { serializeDesignTokens } from "./tokens";
   import { parseDesignTokens } from "./tokens";
+  import { parseCssVariables } from "./css-variables";
   import stringify from "json-stringify-pretty-compact";
 
   const createNewProject = async () => {
@@ -17,7 +18,7 @@
       const json = JSON.parse(text);
       const result = parseDesignTokens(json);
       if (result.errors.length > 0) {
-        alert(
+        console.error(
           `Import completed with ${result.errors.length} error(s):\n${result.errors.map((e) => `${e.path}: ${e.message}`).join("\n")}`,
         );
       }
@@ -29,12 +30,11 @@
           tx.set(node);
         }
       });
-      alert("Design tokens imported successfully from clipboard!");
     } catch (error) {
       if (error instanceof SyntaxError) {
-        alert("Failed to parse clipboard content as JSON");
+        console.error("Failed to parse clipboard content as JSON");
       } else {
-        alert(
+        console.error(
           `Import failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
       }
@@ -47,10 +47,51 @@
       const serialized = serializeDesignTokens(allNodes);
       const json = stringify(serialized);
       await navigator.clipboard.writeText(json);
-      alert("Design tokens exported to clipboard!");
     } catch (error) {
-      alert(
+      console.error(
         `Export failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  };
+
+  const importCssVariables = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        console.error("Clipboard is empty. Please copy CSS variables first.");
+        return;
+      }
+
+      // Parse CSS variables to DTCG format
+      const dtcgTokens = parseCssVariables(text);
+
+      if (Object.keys(dtcgTokens).length === 0) {
+        console.error(
+          "No valid CSS variables found in clipboard. Please paste CSS like:\n:root { --color: #ff0000; --spacing: 16px; }",
+        );
+        return;
+      }
+
+      // Parse DTCG tokens into tree nodes
+      const result = parseDesignTokens(dtcgTokens);
+
+      if (result.errors.length > 0) {
+        console.error(
+          `Import completed with ${result.errors.length} error(s):\n${result.errors.map((e) => `${e.path}: ${e.message}`).join("\n")}`,
+        );
+      }
+
+      treeState.transact((tx) => {
+        // Clear existing state first
+        tx.clear();
+        // Import new nodes
+        for (const node of result.nodes) {
+          tx.set(node);
+        }
+      });
+    } catch (error) {
+      console.error(
+        `Import failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   };
@@ -83,10 +124,13 @@
     New Project
   </button>
   <button class="a-item" role="menuitem" onclick={importFromClipboard}>
-    Import
+    Import Design Tokens JSON
+  </button>
+  <button class="a-item" role="menuitem" onclick={importCssVariables}>
+    Import CSS Variables
   </button>
   <button class="a-item" role="menuitem" onclick={exportIntoClipboard}>
-    Export
+    Export Design Tokens JSON
   </button>
   <button class="a-item" role="menuitem" onclick={shareUrl}> Share URL </button>
   <a

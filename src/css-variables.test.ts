@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { generateCssVariables } from "./css-variables";
+import { generateCssVariables, parseCssVariables } from "./css-variables";
 import { parseDesignTokens } from "./tokens";
 import type { TreeNode } from "./store";
 import type { GroupMeta, TokenMeta } from "./state.svelte";
@@ -610,5 +610,500 @@ describe("generateCssVariables", () => {
     expect(css).toContain(
       "--typography-body: var(--weights-normal) var(--sizes-base)/1.5 var(--fonts-body)",
     );
+  });
+});
+
+describe("parseCssVariables", () => {
+  test("returns empty object for empty input", () => {
+    expect(parseCssVariables("")).toEqual({});
+    expect(parseCssVariables("   ")).toEqual({});
+  });
+
+  test("returns empty object for invalid input", () => {
+    expect(parseCssVariables("not valid css")).toEqual({});
+    expect(parseCssVariables(":root { invalid }")).toEqual({});
+  });
+
+  test("parses :root CSS block with color", () => {
+    const result = parseCssVariables(":root { --primary: rgb(0, 102, 204); }");
+    expect(result).toHaveProperty("primary");
+    expect(result).toMatchObject({
+      primary: {
+        $type: "color",
+        $value: {
+          colorSpace: "srgb",
+          components: expect.any(Array),
+        },
+      },
+    });
+  });
+
+  test("parses bare CSS variable declarations", () => {
+    const result = parseCssVariables("--primary: #0066cc; --spacing: 16px;");
+    expect(result).toHaveProperty("primary");
+    expect(result).toHaveProperty("spacing");
+  });
+
+  test("parses hex color", () => {
+    const result = parseCssVariables("--color: #ff0000;");
+    expect(result).toMatchObject({
+      color: {
+        $type: "color",
+        $value: {
+          colorSpace: "srgb",
+          hex: "#ff0000",
+        },
+      },
+    });
+  });
+
+  test("parses rgb color", () => {
+    const result = parseCssVariables("--color: rgb(255, 0, 0);");
+    expect(result.color).toHaveProperty("$type", "color");
+    expect(result.color?.$value).toHaveProperty("colorSpace", "srgb");
+  });
+
+  test("parses rgba color with alpha", () => {
+    const result = parseCssVariables("--color: rgba(0, 0, 0, 0.5);");
+    expect(result.color).toMatchObject({
+      $type: "color",
+      $value: {
+        alpha: 0.5,
+      },
+    });
+  });
+
+  test("parses hsl color", () => {
+    const result = parseCssVariables("--color: hsl(120, 100%, 50%);");
+    expect(result.color).toHaveProperty("$type", "color");
+    expect(result.color?.$value).toHaveProperty("colorSpace", "hsl");
+  });
+
+  test("parses oklch color", () => {
+    const result = parseCssVariables("--color: oklch(0.7 0.15 180);");
+    expect(result.color).toHaveProperty("$type", "color");
+    expect(result.color?.$value).toHaveProperty("colorSpace", "oklch");
+  });
+
+  test("parses dimension with px", () => {
+    const result = parseCssVariables("--spacing: 16px;");
+    expect(result).toMatchObject({
+      spacing: {
+        $type: "dimension",
+        $value: {
+          value: 16,
+          unit: "px",
+        },
+      },
+    });
+  });
+
+  test("parses dimension with rem", () => {
+    const result = parseCssVariables("--spacing: 2.5rem;");
+    expect(result).toMatchObject({
+      spacing: {
+        $type: "dimension",
+        $value: {
+          value: 2.5,
+          unit: "rem",
+        },
+      },
+    });
+  });
+
+  test("skips dimension with unsupported units", () => {
+    const result = parseCssVariables("--spacing: 16em;");
+    expect(result).toEqual({});
+  });
+
+  test("parses duration with ms", () => {
+    const result = parseCssVariables("--duration: 300ms;");
+    expect(result).toMatchObject({
+      duration: {
+        $type: "duration",
+        $value: {
+          value: 300,
+          unit: "ms",
+        },
+      },
+    });
+  });
+
+  test("parses duration with s", () => {
+    const result = parseCssVariables("--duration: 1.5s;");
+    expect(result).toMatchObject({
+      duration: {
+        $type: "duration",
+        $value: {
+          value: 1.5,
+          unit: "s",
+        },
+      },
+    });
+  });
+
+  test("parses cubic-bezier", () => {
+    const result = parseCssVariables(
+      "--easing: cubic-bezier(0.25, 0.1, 0.25, 1);",
+    );
+    expect(result).toMatchObject({
+      easing: {
+        $type: "cubicBezier",
+        $value: [0.25, 0.1, 0.25, 1],
+      },
+    });
+  });
+
+  test("parses font-family as string", () => {
+    expect(parseCssVariables('--font: "Arial", sans-serif;')).toMatchObject({
+      font: {
+        $type: "fontFamily",
+        $value: ["Arial", "sans-serif"],
+      },
+    });
+  });
+
+  test("parses font-weight", () => {
+    const result = parseCssVariables("--weight: 700;");
+    expect(result).toMatchObject({
+      weight: {
+        $type: "fontWeight",
+        $value: 700,
+      },
+    });
+  });
+
+  test("parses number", () => {
+    const result = parseCssVariables("--count: 42;");
+    expect(result).toMatchObject({
+      count: {
+        $type: "number",
+        $value: 42,
+      },
+    });
+  });
+
+  test("parses negative number", () => {
+    const result = parseCssVariables("--value: -3.14;");
+    expect(result).toMatchObject({
+      value: {
+        $type: "number",
+        $value: -3.14,
+      },
+    });
+  });
+
+  test("parses simple shadow", () => {
+    const result = parseCssVariables(
+      "--shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.1);",
+    );
+    expect(result.shadow).toMatchObject({
+      $type: "shadow",
+      $value: {
+        offsetX: { value: 0, unit: "px" },
+        offsetY: { value: 2, unit: "px" },
+        blur: { value: 4, unit: "px" },
+        spread: { value: 0, unit: "px" },
+        color: expect.any(Object),
+      },
+    });
+  });
+
+  test("parses inset shadow", () => {
+    const result = parseCssVariables(
+      "--shadow: inset 0px 2px 4px 0px rgba(0, 0, 0, 0.1);",
+    );
+    expect(result.shadow?.$value).toHaveProperty("inset", true);
+  });
+
+  test("parses multiple shadows", () => {
+    const result = parseCssVariables(
+      "--shadow: 0px 1px 2px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.05);",
+    );
+    expect(result.shadow?.$value).toBeInstanceOf(Array);
+    if (Array.isArray(result.shadow?.$value)) {
+      expect(result.shadow.$value).toHaveLength(2);
+    }
+  });
+
+  test("parses border", () => {
+    const result = parseCssVariables("--border: 1px solid rgb(200, 200, 200);");
+    expect(result.border).toMatchObject({
+      $type: "border",
+      $value: {
+        width: { value: 1, unit: "px" },
+        style: "solid",
+        color: expect.any(Object),
+      },
+    });
+  });
+
+  test("parses transition", () => {
+    const result = parseCssVariables(
+      "--transition: 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;",
+    );
+    expect(result.transition).toMatchObject({
+      $type: "transition",
+      $value: {
+        duration: { value: 300, unit: "ms" },
+        timingFunction: [0.4, 0, 0.2, 1],
+        delay: { value: 0, unit: "ms" },
+      },
+    });
+  });
+
+  test("parses gradient", () => {
+    const result = parseCssVariables(
+      "--gradient: linear-gradient(90deg, rgb(0, 102, 204) 0%, rgb(25, 128, 230) 100%);",
+    );
+    expect(result.gradient).toMatchObject({
+      $type: "gradient",
+      $value: [
+        {
+          color: expect.any(Object),
+          position: 0,
+        },
+        {
+          color: expect.any(Object),
+          position: 1,
+        },
+      ],
+    });
+  });
+
+  test("parses var() reference", () => {
+    const result = parseCssVariables("--alias: var(--primary);");
+    expect(result).toMatchObject({
+      alias: {
+        $value: "{primary}",
+      },
+    });
+  });
+
+  test("parses var() reference in shadow", () => {
+    const result = parseCssVariables(
+      "--shadow: 0px 2px 4px 0px var(--shadow-color);",
+    );
+    expect(result.shadow?.$value).toHaveProperty("color", "{shadow-color}");
+  });
+
+  test("parses var() reference in border", () => {
+    const result = parseCssVariables(
+      "--border: var(--border-width) solid var(--border-color);",
+    );
+    expect(result.border?.$value).toHaveProperty("width", "{border-width}");
+    expect(result.border?.$value).toHaveProperty("color", "{border-color}");
+  });
+
+  test("parses var() reference in gradient", () => {
+    const result = parseCssVariables(
+      "--gradient: linear-gradient(90deg, var(--color1) 0%, var(--color2) 100%);",
+    );
+    if (Array.isArray(result.gradient?.$value)) {
+      expect(result.gradient.$value[0]).toHaveProperty("color", "{color1}");
+      expect(result.gradient.$value[1]).toHaveProperty("color", "{color2}");
+    }
+  });
+
+  test("parses multiple variables", () => {
+    const css = `
+      :root {
+        --primary: #0066cc;
+        --spacing-sm: 8px;
+        --spacing-lg: 16px;
+        --duration-fast: 150ms;
+        --shadow-sm: 0px 1px 2px rgba(0,0,0,0.1);
+      }
+    `;
+    const result = parseCssVariables(css);
+    expect(Object.keys(result)).toHaveLength(5);
+    expect(result).toHaveProperty("primary");
+    expect(result).toHaveProperty("spacing-sm");
+    expect(result).toHaveProperty("spacing-lg");
+    expect(result).toHaveProperty("duration-fast");
+    expect(result).toHaveProperty("shadow-sm");
+  });
+
+  test("skips unparsable values", () => {
+    const result = parseCssVariables(
+      "--valid: 16px; --invalid: something-weird; --also-valid: 42;",
+    );
+    expect(result).toHaveProperty("valid");
+    expect(result).toHaveProperty("also-valid");
+    expect(result).not.toHaveProperty("invalid");
+  });
+
+  test("handles kebab-case variable names", () => {
+    const result = parseCssVariables("--colors-primary-light: #0066cc;");
+    expect(result).toHaveProperty("colors-primary-light");
+  });
+
+  test("integrates with parseDesignTokens", () => {
+    const cssResult = parseCssVariables("--primary: #0066cc; --spacing: 16px;");
+    const parsed = parseDesignTokens(cssResult);
+    expect(parsed.nodes).toHaveLength(2);
+    expect(parsed.errors).toHaveLength(0);
+  });
+
+  test("strips out comments", () => {
+    expect(
+      parseCssVariables(`
+        --four: 4;
+        /* values tier */
+        --five: 5;
+      `),
+    ).toEqual({
+      four: { $type: "number", $value: 4 },
+      five: { $type: "number", $value: 5 },
+    });
+  });
+
+  test("strips inline comments after declarations", () => {
+    const result = parseCssVariables(`
+      --primary: #ff0000; /* red color */
+      --spacing: 16px; /* base spacing */
+    `);
+    expect(result.primary).toMatchObject({
+      $type: "color",
+      $value: { colorSpace: "srgb", hex: "#ff0000" },
+    });
+    expect(result.spacing).toEqual({
+      $type: "dimension",
+      $value: { value: 16, unit: "px" },
+    });
+  });
+
+  test("strips multi-line comments", () => {
+    expect(
+      parseCssVariables(`
+        --one: 1;
+        /*
+         * This is a multi-line comment
+         * with multiple lines
+         */
+        --two: 2;
+      `),
+    ).toEqual({
+      one: { $type: "number", $value: 1 },
+      two: { $type: "number", $value: 2 },
+    });
+  });
+
+  test("strips multiple comments in one line", () => {
+    expect(
+      parseCssVariables(
+        "--one: 1; /* first */ --two: 2; /* second */ --three: 3;",
+      ),
+    ).toEqual({
+      one: { $type: "number", $value: 1 },
+      two: { $type: "number", $value: 2 },
+      three: { $type: "number", $value: 3 },
+    });
+  });
+
+  test("strips comments with asterisks inside", () => {
+    expect(
+      parseCssVariables(`
+        --value: 10px; /* This is a comment with ** asterisks *** inside */
+      `),
+    ).toEqual({
+      value: { $type: "dimension", $value: { value: 10, unit: "px" } },
+    });
+  });
+
+  test("strips comments before :root", () => {
+    const result = parseCssVariables(`
+      /* Global design tokens */
+      :root {
+        --primary: #0066cc;
+      }
+    `);
+    expect(result.primary).toMatchObject({
+      $type: "color",
+      $value: { colorSpace: "srgb", hex: "#0066cc" },
+    });
+  });
+
+  test("strips comments inside :root", () => {
+    const result = parseCssVariables(`
+      :root {
+        /* Colors section */
+        --primary: #0066cc;
+        /* Spacing section */
+        --spacing: 8px;
+      }
+    `);
+    expect(result.primary).toMatchObject({
+      $type: "color",
+      $value: { colorSpace: "srgb", hex: "#0066cc" },
+    });
+    expect(result.spacing).toEqual({
+      $type: "dimension",
+      $value: { value: 8, unit: "px" },
+    });
+  });
+
+  test("strips empty comments", () => {
+    expect(
+      parseCssVariables(`
+        --one: 1; /**/
+        /**/ --two: 2;
+      `),
+    ).toEqual({
+      one: { $type: "number", $value: 1 },
+      two: { $type: "number", $value: 2 },
+    });
+  });
+
+  test("strips comments with special characters", () => {
+    expect(
+      parseCssVariables(`
+        --value: 16px; /* TODO: update this @author John (2024) */
+      `),
+    ).toEqual({
+      value: { $type: "dimension", $value: { value: 16, unit: "px" } },
+    });
+  });
+
+  test("handles complex values with comments", () => {
+    expect(
+      parseCssVariables(`
+        /* Shadow definition */
+        --shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.1); /* subtle shadow */
+        /* Border definition */
+        --border: 1px solid #ccc; /* gray border */
+      `),
+    ).toEqual({
+      shadow: {
+        $type: "shadow",
+        $value: {
+          offsetX: { value: 0, unit: "px" },
+          offsetY: { value: 2, unit: "px" },
+          blur: { value: 4, unit: "px" },
+          spread: { value: 0, unit: "px" },
+          color: expect.any(Object),
+        },
+      },
+      border: {
+        $type: "border",
+        $value: {
+          width: { value: 1, unit: "px" },
+          style: "solid",
+          color: expect.any(Object),
+        },
+      },
+    });
+  });
+
+  test("strips comments between property and value", () => {
+    // Comments between property and value should be stripped
+    // though this is unusual CSS
+    expect(
+      parseCssVariables(`
+        --value /* weird comment */ : 42;
+      `),
+    ).toEqual({
+      value: { $type: "number", $value: 42 },
+    });
   });
 });
