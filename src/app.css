@@ -46,192 +46,211 @@ body {
   color: var(--text-primary);
 }
 
-.a-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
+@layer atoms {
+  .a-link {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    /* button reset */
+    padding: 0;
+    background: transparent;
+    border: 0;
+    font-size: inherit;
+    font-family: inherit;
 
-.a-panel-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-color-input {
-  gap: 8px;
-  width: stretch;
-
-  &::part(output) {
-    font-size: 12px;
-  }
-}
-
-.a-field,
-color-input::part(input) {
-  /* fit input into minimal available space */
-  min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid transparent;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 13px;
-  transition: all 0.2s ease;
-  &:disabled {
-    color: var(--text-secondary);
-  }
-}
-
-.a-field:focus,
-/* cannot use css nesting inside of pseudo-element */
-color-input::part(input):focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--bg-primary);
-  box-shadow: 0 0 0 2px rgb(0 0 0 / 0.1);
-}
-
-.a-field[type="number"] {
-  -moz-appearance: textfield;
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-}
-
-select.a-field {
-  height: 28px;
-}
-
-textarea.a-field {
-  field-sizing: content;
-  resize: none;
-  max-height: 10lh;
-}
-
-.a-checkbox {
-  /* 28px is the size of text input */
-  margin: 6px 0;
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--border-color);
-}
-
-/* expects icons 16px to keep button square */
-.a-button,
-color-input::part(trigger) {
-  display: flex;
-  min-height: 28px;
-  padding: 0 5px;
-  gap: 4px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  background-color: oklch(from var(--bg-primary) l c h / 50%);
-  border-radius: 4px;
-  color: var(--text-primary);
-  transition: all 0.2s ease;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-
-  &[aria-pressed="true"] {
-    background-color: var(--bg-reference);
     &:hover {
-      background-color: var(--bg-reference-hover);
+      color: var(--accent-hover);
     }
   }
-}
 
-.a-button:hover,
-/* cannot use css nesting inside of pseudo-element */
-color-input::part(trigger):hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.a-button:focus-visible,
-color-input::part(trigger):focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgb(0 0 0 / 0.1);
-}
-
-.a-small-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  background-color: transparent;
-  color: var(--text-primary);
-  opacity: 0.5;
-  transition: opacity 150ms;
-
-  &:hover {
-    opacity: 1;
+  .a-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
   }
-}
 
-.a-popover {
-  margin: 0;
-  min-width: 160px;
-  background: var(--bg-primary);
-  border: 0;
-  padding: 0;
-  box-shadow: var(--popover-shadow);
-}
+  .a-panel-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
 
-.a-menu {
-  position-area: bottom;
-  position-try-fallbacks: flip-block;
-  margin-inline: 0;
-  margin-block: 8px;
-}
+  color-input {
+    gap: 8px;
+    width: stretch;
 
-.a-tooltip {
-  width: max-content;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 0;
-  padding: 4px 12px;
-  margin-inline: 0;
-  margin-block: 8px;
-  border-radius: 4px;
-  box-shadow: var(--popover-shadow);
-  position-area: center top;
-  position-try-fallbacks: flip-block;
-}
+    &::part(output) {
+      font-size: 12px;
+    }
+  }
 
-.a-item {
-  display: block;
-  width: 100%;
-  padding: 5px 12px;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  text-align: left;
-  font-size: 13px;
-  font-family: inherit;
-  transition: 150ms;
-  text-decoration: none;
+  .a-field,
+  color-input::part(input) {
+    /* fit input into minimal available space */
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    &:disabled {
+      color: var(--text-secondary);
+    }
+  }
 
-  &:hover,
-  &:focus-visible {
-    background: var(--bg-hover);
+  .a-field:focus,
+  /* cannot use css nesting inside of pseudo-element */
+  color-input::part(input):focus {
     outline: none;
+    border-color: var(--accent);
+    background: var(--bg-primary);
+    box-shadow: 0 0 0 2px rgb(0 0 0 / 0.1);
   }
 
-  &[aria-selected="true"] {
-    background: var(--accent);
-    color: white;
+  .a-field[type="number"] {
+    -moz-appearance: textfield;
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+
+  select.a-field {
+    height: 28px;
+  }
+
+  textarea.a-field {
+    field-sizing: content;
+    resize: none;
+    max-height: 10lh;
+  }
+
+  .a-checkbox {
+    /* 28px is the size of text input */
+    margin: 6px 0;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--border-color);
+  }
+
+  /* expects icons 16px to keep button square */
+  .a-button,
+  color-input::part(trigger) {
+    display: flex;
+    min-height: 28px;
+    padding: 0 5px;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    background-color: oklch(from var(--bg-primary) l c h / 50%);
+    border-radius: 4px;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+
+    &[aria-pressed="true"] {
+      background-color: var(--bg-reference);
+      &:hover {
+        background-color: var(--bg-reference-hover);
+      }
+    }
+  }
+
+  .a-button:hover,
+  /* cannot use css nesting inside of pseudo-element */
+  color-input::part(trigger):hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .a-button:focus-visible,
+  color-input::part(trigger):focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgb(0 0 0 / 0.1);
+  }
+
+  .a-small-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background-color: transparent;
+    color: var(--text-primary);
+    opacity: 0.5;
+    transition: opacity 150ms;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  .a-popover {
+    margin: 0;
+    min-width: 160px;
+    background: var(--bg-primary);
+    border: 0;
+    padding: 0;
+    box-shadow: var(--popover-shadow);
+  }
+
+  .a-menu {
+    position-area: bottom;
+    position-try-fallbacks: flip-block;
+    margin-inline: 0;
+    margin-block: 8px;
+  }
+
+  .a-tooltip {
+    width: max-content;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 0;
+    padding: 4px 12px;
+    margin-inline: 0;
+    margin-block: 8px;
+    border-radius: 4px;
+    box-shadow: var(--popover-shadow);
+    position-area: center top;
+    position-try-fallbacks: flip-block;
+  }
+
+  .a-item {
+    display: block;
+    width: 100%;
+    padding: 5px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    font-size: 13px;
+    font-family: inherit;
+    transition: 150ms;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--bg-hover);
+      outline: none;
+    }
+
+    &[aria-selected="true"] {
+      background: var(--accent);
+      color: white;
+    }
   }
 }

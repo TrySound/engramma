@@ -321,16 +321,14 @@
     {/if}
 
     {#if tokenValue.type === "number"}
-      {@const groupTokens = parentId
-        ? treeState
-            .getChildren(parentId)
-            .filter((n) => n.meta.nodeType === "token")
-            .map((n) => {
-              const val = resolveTokenValue(n, treeState.nodes());
-              return val.type === "number" ? val.value : null;
-            })
-            .filter((v) => v !== null)
-        : [tokenValue.value]}
+      {@const groupTokens = treeState
+        .getChildren(parentId)
+        .filter((n) => n.meta.nodeType === "token")
+        .map((n) => {
+          const val = resolveTokenValue(n, treeState.nodes());
+          return val.type === "number" ? val.value : null;
+        })
+        .filter((v) => v !== null)}
       <div class="token-preview">
         {@render numberPreview({
           tokens: groupTokens,

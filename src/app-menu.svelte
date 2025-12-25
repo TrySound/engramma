@@ -2,43 +2,13 @@
   import { Menu, X } from "@lucide/svelte";
   import { treeState } from "./state.svelte";
   import { serializeDesignTokens } from "./tokens";
-  import { parseDesignTokens } from "./tokens";
-  import { parseCssVariables } from "./css-variables";
   import stringify from "json-stringify-pretty-compact";
+  import NewProject from "./new-project.svelte";
 
   const createNewProject = async () => {
     treeState.transact((tx) => {
       tx.clear();
     });
-  };
-
-  const importFromClipboard = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const json = JSON.parse(text);
-      const result = parseDesignTokens(json);
-      if (result.errors.length > 0) {
-        console.error(
-          `Import completed with ${result.errors.length} error(s):\n${result.errors.map((e) => `${e.path}: ${e.message}`).join("\n")}`,
-        );
-      }
-      treeState.transact((tx) => {
-        // Clear existing state first
-        tx.clear();
-        // Import new nodes
-        for (const node of result.nodes) {
-          tx.set(node);
-        }
-      });
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        console.error("Failed to parse clipboard content as JSON");
-      } else {
-        console.error(
-          `Import failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
-    }
   };
 
   const exportIntoClipboard = async () => {
@@ -50,48 +20,6 @@
     } catch (error) {
       console.error(
         `Export failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  };
-
-  const importCssVariables = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text) {
-        console.error("Clipboard is empty. Please copy CSS variables first.");
-        return;
-      }
-
-      // Parse CSS variables to DTCG format
-      const dtcgTokens = parseCssVariables(text);
-
-      if (Object.keys(dtcgTokens).length === 0) {
-        console.error(
-          "No valid CSS variables found in clipboard. Please paste CSS like:\n:root { --color: #ff0000; --spacing: 16px; }",
-        );
-        return;
-      }
-
-      // Parse DTCG tokens into tree nodes
-      const result = parseDesignTokens(dtcgTokens);
-
-      if (result.errors.length > 0) {
-        console.error(
-          `Import completed with ${result.errors.length} error(s):\n${result.errors.map((e) => `${e.path}: ${e.message}`).join("\n")}`,
-        );
-      }
-
-      treeState.transact((tx) => {
-        // Clear existing state first
-        tx.clear();
-        // Import new nodes
-        for (const node of result.nodes) {
-          tx.set(node);
-        }
-      });
-    } catch (error) {
-      console.error(
-        `Import failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   };
@@ -120,14 +48,14 @@
   onclick={(event) => event.currentTarget.hidePopover()}
 >
   <!-- svelte-ignore a11y_autofocus -->
-  <button class="a-item" role="menuitem" autofocus onclick={createNewProject}>
+  <button
+    class="a-item"
+    role="menuitem"
+    autofocus
+    commandfor="new-project-dialog"
+    command="show-modal"
+  >
     New Project
-  </button>
-  <button class="a-item" role="menuitem" onclick={importFromClipboard}>
-    Import Design Tokens JSON
-  </button>
-  <button class="a-item" role="menuitem" onclick={importCssVariables}>
-    Import CSS Variables
   </button>
   <button class="a-item" role="menuitem" onclick={exportIntoClipboard}>
     Export Design Tokens JSON
@@ -152,6 +80,8 @@
   </button>
 </div>
 
+<NewProject />
+
 <dialog id="app-menu-about" class="about-dialog" closedby="any">
   <button
     class="a-button about-dialog-close"
@@ -168,7 +98,12 @@
   </p>
   <p>
     Created and maintained by Bogdan Chadkin aka
-    <a href="https://github.com/TrySound" target="_blank" rel="noopener">
+    <a
+      class="a-link"
+      href="https://github.com/TrySound"
+      target="_blank"
+      rel="noopener"
+    >
       TrySound
     </a>.
   </p>
@@ -178,7 +113,9 @@
   </p>
   <p>
     → Sponsor / contact:
-    <a href="mailto:opensource@trysound.io">opensource@trysound.io</a>
+    <a class="a-link" href="mailto:opensource@trysound.io">
+      opensource@trysound.io
+    </a>
   </p>
 </dialog>
 
@@ -212,11 +149,6 @@
       font-size: 15px;
       line-height: 1.5;
       color: var(--text-primary);
-
-      a {
-        color: var(--accent);
-        font-weight: 500;
-      }
     }
   }
 
