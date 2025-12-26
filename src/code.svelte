@@ -32,6 +32,7 @@
     position: relative;
     overflow: hidden;
     display: grid;
+    height: 100%;
   }
 
   .copy-button {
@@ -41,6 +42,7 @@
   }
 
   pre {
+    height: 100%;
     margin: 0;
     padding: 16px;
     overflow: auto;

@@ -23,7 +23,6 @@
     hotkeyMacCompat,
     startKeyUX,
   } from "keyux";
-  import stringify from "json-stringify-pretty-compact";
   import {
     Settings,
     Trash2,
@@ -46,7 +45,6 @@
   import AddToken from "./add-token.svelte";
   import AppMenu from "./app-menu.svelte";
   import Styleguide from "./styleguide.svelte";
-  import Code from "./code.svelte";
   import type { TreeNode } from "./store";
   import {
     findTokenType,
@@ -54,9 +52,6 @@
     treeState,
     type TreeNodeMeta,
   } from "./state.svelte";
-  import { serializeDesignTokens } from "./tokens";
-  import { generateCssVariables } from "./css-variables";
-  import { generateScssVariables } from "./scss";
   import { serializeColor } from "./color";
   import type { Value } from "./schema";
 
@@ -72,7 +67,6 @@
   const rootNodes = $derived(treeState.getChildren(undefined));
 
   let selectedItems = new SvelteSet<string>();
-  let outputMode = $state<"styleguide" | "css" | "scss" | "json">("styleguide");
 
   const buildTreeItem = (node: TreeNode<TreeNodeMeta>): TreeItem => {
     const children = treeState.getChildren(node.nodeId);
@@ -86,60 +80,6 @@
 
   const treeData = $derived(rootNodes.map(buildTreeItem));
   const defaultExpandedItems = $derived([]);
-
-  const filterNodesToSelected = (
-    nodes: Map<string, TreeNode<TreeNodeMeta>>,
-    selectedIds: Set<string>,
-  ) => {
-    if (selectedIds.size === 0) {
-      return nodes;
-    }
-    const filtered = new Map<string, TreeNode<TreeNodeMeta>>();
-    // Collect all selected nodes and their descendants
-    const addNodeAndDescendants = (nodeId: string) => {
-      const node = nodes.get(nodeId);
-      if (node) {
-        filtered.set(node.nodeId, node);
-        const children = Array.from(nodes.values()).filter(
-          (n) => n.parentId === nodeId,
-        );
-        for (const child of children) {
-          addNodeAndDescendants(child.nodeId);
-        }
-      }
-    };
-    // Collect all ancestors of selected nodes
-    const addAncestors = (nodeId: string) => {
-      const node = nodes.get(nodeId);
-      if (node) {
-        filtered.set(node.nodeId, node);
-        if (node.parentId) {
-          addAncestors(node.parentId);
-        }
-      }
-    };
-    // First add all selected nodes and their descendants
-    for (const nodeId of selectedIds) {
-      addNodeAndDescendants(nodeId);
-    }
-    // Then add all ancestors
-    for (const nodeId of selectedIds) {
-      const node = nodes.get(nodeId);
-      if (node?.parentId) {
-        addAncestors(node.parentId);
-      }
-    }
-    return filtered;
-  };
-
-  const allSelectedNodes = $derived(
-    filterNodesToSelected(treeState.nodes(), selectedItems),
-  );
-  const cssOutput = $derived(generateCssVariables(allSelectedNodes));
-  const scssOutput = $derived(generateScssVariables(allSelectedNodes));
-  const jsonOutput = $derived(
-    stringify(serializeDesignTokens(allSelectedNodes)),
-  );
 
   const handleDelete = () => {
     if (selectedItems.size === 0) {
@@ -213,16 +153,19 @@
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
+    if (!(event.target instanceof HTMLElement)) {
+      return;
+    }
     if (
-      event.target instanceof HTMLElement &&
       event.target.closest("input, textarea, [contenteditable], color-input")
     ) {
       return;
     }
-    if (event.key === "Enter") {
+    const closestTree = event.target.closest("[role=tree]");
+    if (event.key === "Enter" && closestTree) {
       document.getElementById("app-node-editor")?.showPopover();
     }
-    if (event.key === "Backspace") {
+    if (event.key === "Backspace" && closestTree) {
       handleDelete();
     }
   };
@@ -452,64 +395,10 @@
 
     <!-- Right Panel: CSS Variables / JSON -->
     <main class="panel right-panel">
-      <div class="tablist-header" role="tablist" aria-label="Output format">
-        <button
-          role="tab"
-          aria-selected={outputMode === "styleguide"}
-          aria-controls="styleguide-tabpanel"
-          class="tab-btn"
-          onclick={() => (outputMode = "styleguide")}
-        >
-          Styleguide
-        </button>
-        <button
-          role="tab"
-          aria-selected={outputMode === "css"}
-          aria-controls="css-tabpanel"
-          class="tab-btn"
-          onclick={() => (outputMode = "css")}
-        >
-          CSS
-        </button>
-        <button
-          role="tab"
-          aria-selected={outputMode === "scss"}
-          aria-controls="scss-tabpanel"
-          class="tab-btn"
-          onclick={() => (outputMode = "scss")}
-        >
-          SCSS
-        </button>
-        <button
-          role="tab"
-          aria-selected={outputMode === "json"}
-          aria-controls="json-tabpanel"
-          class="tab-btn"
-          onclick={() => (outputMode = "json")}
-        >
-          JSON
-        </button>
+      <div class="panel-header"><!-- placeholder for sets --></div>
+      <div class="styleguide-panel">
+        <Styleguide {selectedItems} />
       </div>
-      {#if outputMode === "styleguide"}
-        <div id="styleguide-tabpanel" class="styleguide-panel">
-          <Styleguide {selectedItems} />
-        </div>
-      {/if}
-      {#if outputMode === "css"}
-        <div id="css-tabpanel" class="code-panel">
-          <Code code={cssOutput} language="css" />
-        </div>
-      {/if}
-      {#if outputMode === "scss"}
-        <div id="scss-tabpanel" class="code-panel">
-          <Code code={scssOutput} language="scss" />
-        </div>
-      {/if}
-      {#if outputMode === "json"}
-        <div id="json-tabpanel" class="code-panel">
-          <Code code={jsonOutput} language="json" />
-        </div>
-      {/if}
     </main>
   </div>
 </div>
@@ -531,7 +420,7 @@
   /* Panels */
   .panel {
     display: grid;
-    grid-template-rows: max-content 1fr;
+    grid-template-rows: var(--panel-header-height) 1fr;
     background: var(--bg-primary);
     border-right: 1px solid var(--border-color);
   }
@@ -552,7 +441,6 @@
     justify-content: flex-start;
     align-items: center;
     padding: 0 12px;
-    height: var(--panel-header-height);
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
     background: var(--bg-primary);
@@ -605,67 +493,7 @@
     visibility: var(--tree-view-item-hover-visibility);
   }
 
-  .code-panel {
-    overflow: hidden;
-    display: grid;
-  }
-
   .styleguide-panel {
     overflow: hidden;
-  }
-
-  .tablist-header {
-    display: flex;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-    background: var(--bg-primary);
-    height: var(--panel-header-height);
-
-    &::after {
-      content: "";
-      position: absolute;
-      position-anchor: --app-selected-tab;
-      left: anchor(left);
-      right: anchor(right);
-      /* cover header border */
-      bottom: calc(anchor(bottom) - 1px);
-      border-bottom: 2px solid var(--accent);
-      transition: all 200ms;
-    }
-  }
-
-  /* Tab button styles */
-  .tab-btn {
-    padding: 0 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-radius: 0;
-    transition: all 0.2s ease;
-    position: relative;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-
-    &:hover {
-      color: var(--text-primary);
-      background: var(--bg-secondary);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: -2px;
-    }
-
-    &[aria-selected="true"] {
-      color: var(--accent);
-      anchor-name: --app-selected-tab;
-    }
   }
 </style>

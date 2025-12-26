@@ -1,28 +1,7 @@
 <script lang="ts">
   import { Menu, X } from "@lucide/svelte";
-  import { treeState } from "./state.svelte";
-  import { serializeDesignTokens } from "./tokens";
-  import stringify from "json-stringify-pretty-compact";
   import NewProject from "./new-project.svelte";
-
-  const createNewProject = async () => {
-    treeState.transact((tx) => {
-      tx.clear();
-    });
-  };
-
-  const exportIntoClipboard = async () => {
-    try {
-      const allNodes = treeState.nodes();
-      const serialized = serializeDesignTokens(allNodes);
-      const json = stringify(serialized);
-      await navigator.clipboard.writeText(json);
-    } catch (error) {
-      console.error(
-        `Export failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  };
+  import ExportDialog from "./export-dialog.svelte";
 
   const shareUrl = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -57,8 +36,13 @@
   >
     New Project
   </button>
-  <button class="a-item" role="menuitem" onclick={exportIntoClipboard}>
-    Export Design Tokens JSON
+  <button
+    class="a-item"
+    role="menuitem"
+    commandfor="export-dialog"
+    command="show-modal"
+  >
+    Export tokens
   </button>
   <button class="a-item" role="menuitem" onclick={shareUrl}> Share URL </button>
   <a
@@ -81,6 +65,8 @@
 </div>
 
 <NewProject />
+
+<ExportDialog />
 
 <dialog id="app-menu-about" class="about-dialog" closedby="any">
   <button
