@@ -267,6 +267,10 @@
     ) as null | HTMLButtonElement;
     if (button?.commandForElement) {
       const target = button.commandForElement;
+      // ignore dialogs
+      if (target instanceof HTMLDialogElement) {
+        return;
+      }
       // closed state is not always triggers beforetoggle
       cleanupPositioningAutoUpdate?.();
       const updatePosition = () => {
