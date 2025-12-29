@@ -61,14 +61,14 @@ describe("parseDesignTokens", () => {
 
   test("excludes invalid token with bad name from tree", () => {
     const result = parseDesignTokens({
-      $invalid: {
+      ".invalid": {
         $type: "number",
         $value: 123,
       },
     });
     expect(result.nodes).toHaveLength(0);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain("must not start with '$'");
+    expect(result.errors[0].message).toContain("must not contain '.'");
   });
 
   test("excludes token with forbidden characters from tree", () => {
@@ -93,18 +93,6 @@ describe("parseDesignTokens", () => {
     });
     expect(result.nodes).toHaveLength(2);
     expect(result.errors).toHaveLength(0);
-  });
-
-  test("rejects names starting with '$' (except $root)", () => {
-    const result = parseDesignTokens({
-      $invalid: {
-        $type: "color",
-        $value: { colorSpace: "srgb", components: [1, 0, 0] },
-      },
-    });
-    expect(result.nodes).toHaveLength(0);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain("must not start with '$'");
   });
 
   test("rejects names containing '{'", () => {
@@ -156,6 +144,22 @@ describe("parseDesignTokens", () => {
     expect(result.nodes).toHaveLength(1);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].message).toContain("must not contain '.'");
+  });
+
+  test("ignores unknown fields at root level starting with $", () => {
+    const result = parseDesignTokens({
+      $extensions: { custom: "value" },
+      $metadata: { version: "1.0" },
+      $custom: { anything: true },
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [1, 0, 0] },
+        },
+      },
+    });
+    expect(result.nodes).toHaveLength(2);
+    expect(result.errors).toHaveLength(0);
   });
 
   test("accepts valid reference with multiple segments", () => {
@@ -711,6 +715,414 @@ describe("parseDesignTokens", () => {
     expect(result.nodes).toHaveLength(0);
     expect(result.errors).toHaveLength(1);
   });
+
+  test("parses token with $value containing reference", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        brand: {
+          $type: "color",
+          $value: "{colors.primary}",
+        },
+      },
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(4);
+    const brandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
+    );
+    expect(brandToken?.meta.nodeType).toBe("token");
+    if (brandToken?.meta.nodeType === "token") {
+      expect(brandToken.meta).toEqual(
+        expect.objectContaining({
+          nodeType: "token",
+          name: "brand",
+          type: "color",
+        }),
+      );
+      // Value should be TokenRef with node ID
+      expect(brandToken.meta.value).toEqual(
+        expect.objectContaining({
+          ref: expect.any(String),
+        }),
+      );
+    }
+  });
+
+  test("allows token with $value reference but no $type", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        brand: {
+          $value: "{colors.primary}",
+        },
+      },
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const brandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
+    );
+    expect(brandToken?.meta.nodeType).toBe("token");
+    if (brandToken?.meta.nodeType === "token") {
+      expect(brandToken.meta).toEqual(
+        expect.objectContaining({
+          nodeType: "token",
+          name: "brand",
+          type: "color", // Type should be resolved from referenced token
+        }),
+      );
+      // Value should be TokenRef with node ID
+      expect(brandToken.meta.value).toEqual(
+        expect.objectContaining({
+          ref: expect.any(String),
+        }),
+      );
+    }
+  });
+
+  test("resolves type recursively for chained token aliases", () => {
+    const result = parseDesignTokens({
+      aliases: {
+        mainBrand: {
+          $value: "{semantic.brand}",
+        },
+      },
+      semantic: {
+        brand: {
+          $value: "{colors.primary}",
+        },
+      },
+      colors: {
+        $type: "color",
+        primary: {
+          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+
+    const brandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
+    );
+    expect(brandToken?.meta?.type).toBe("color");
+
+    const mainBrandToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "mainBrand",
+    );
+    // mainBrand should resolve type through the chain: mainBrand -> brand -> colors.primary
+    expect(mainBrandToken?.meta?.type).toBe("color");
+  });
+
+  test("allow numeric segment names", () => {
+    const result = parseDesignTokens({
+      blue: {
+        $type: "color",
+        "500": {
+          $value: { colorSpace: "srgb", components: [0, 0, 1] },
+        },
+        alias: { $value: "{blue.500}" },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(3);
+  });
+
+  test("accepts shadow with component aliases", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        black: {
+          $value: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.2 },
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        md: {
+          $value: { value: 4, unit: "px" },
+        },
+      },
+      shadows: {
+        $type: "shadow",
+        primary: {
+          $value: {
+            color: "{colors.black}",
+            offsetX: "{spacing.md}",
+            offsetY: "{spacing.md}",
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+            inset: false,
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(6);
+    const shadowToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "primary",
+    );
+    expect(shadowToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "primary",
+        type: "shadow",
+        value: [
+          expect.objectContaining({
+            color: expect.objectContaining({ ref: expect.any(String) }),
+            offsetX: expect.objectContaining({ ref: expect.any(String) }),
+            offsetY: expect.objectContaining({ ref: expect.any(String) }),
+            blur: { value: 8, unit: "px" },
+          }),
+        ],
+      }),
+    );
+  });
+
+  test("accepts border with component aliases", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        gray: {
+          $value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        sm: {
+          $value: { value: 1, unit: "px" },
+        },
+      },
+      borders: {
+        $type: "border",
+        default: {
+          $value: {
+            color: "{colors.gray}",
+            width: "{spacing.sm}",
+            style: "solid",
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(6);
+    const borderToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "default",
+    );
+    expect(borderToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "default",
+        type: "border",
+        value: expect.objectContaining({
+          color: expect.objectContaining({ ref: expect.any(String) }),
+          width: expect.objectContaining({ ref: expect.any(String) }),
+          style: "solid",
+        }),
+      }),
+    );
+  });
+
+  test("accepts typography with component aliases", () => {
+    const result = parseDesignTokens({
+      fonts: {
+        $type: "fontFamily",
+        body: {
+          $value: "sans-serif",
+        },
+      },
+      spacing: {
+        $type: "dimension",
+        md: {
+          $value: { value: 16, unit: "px" },
+        },
+      },
+      typography: {
+        $type: "typography",
+        base: {
+          $value: {
+            fontFamily: "{fonts.body}",
+            fontSize: "{spacing.md}",
+            fontWeight: 400,
+            lineHeight: 1.5,
+            letterSpacing: { value: 0, unit: "px" },
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(6);
+    const typographyToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "base",
+    );
+    expect(typographyToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "base",
+        type: "typography",
+        value: expect.objectContaining({
+          fontFamily: expect.objectContaining({ ref: expect.any(String) }),
+          fontSize: expect.objectContaining({ ref: expect.any(String) }),
+          fontWeight: 400,
+          lineHeight: 1.5,
+          letterSpacing: { value: 0, unit: "px" },
+        }),
+      }),
+    );
+  });
+
+  test("accepts transition with component aliases", () => {
+    const result = parseDesignTokens({
+      durations: {
+        $type: "duration",
+        quick: {
+          $value: { value: 300, unit: "ms" },
+        },
+        slowDelay: {
+          $value: { value: 100, unit: "ms" },
+        },
+      },
+      easing: {
+        $type: "cubicBezier",
+        ease: {
+          $value: [0.25, 0.1, 0.25, 1],
+        },
+      },
+      transitions: {
+        $type: "transition",
+        smooth: {
+          $value: {
+            duration: "{durations.quick}",
+            delay: "{durations.slowDelay}",
+            timingFunction: "{easing.ease}",
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(7);
+    const transitionToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "smooth",
+    );
+    expect(transitionToken?.meta).toEqual(
+      expect.objectContaining({
+        nodeType: "token",
+        name: "smooth",
+        type: "transition",
+        value: expect.objectContaining({
+          duration: expect.objectContaining({ ref: expect.any(String) }),
+          delay: expect.objectContaining({ ref: expect.any(String) }),
+          timingFunction: expect.objectContaining({ ref: expect.any(String) }),
+        }),
+      }),
+    );
+  });
+
+  test("accepts gradient with component aliases", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        red: {
+          $value: { colorSpace: "srgb", components: [1, 0, 0] },
+        },
+        blue: {
+          $value: { colorSpace: "srgb", components: [0, 0, 1] },
+        },
+      },
+      gradients: {
+        $type: "gradient",
+        redToBlue: {
+          $value: [
+            {
+              color: "{colors.red}",
+              position: 0,
+            },
+            {
+              color: "{colors.blue}",
+              position: 1,
+            },
+          ],
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(5);
+    const gradientToken = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "redToBlue",
+    );
+    expect(gradientToken?.meta.nodeType).toBe("token");
+    if (gradientToken?.meta.nodeType === "token") {
+      expect(gradientToken.meta).toEqual(
+        expect.objectContaining({
+          nodeType: "token",
+          name: "redToBlue",
+          type: "gradient",
+        }),
+      );
+      const gradientValue = gradientToken.meta.value as Array<{
+        color: string | object;
+        position: number;
+      }>;
+      expect(Array.isArray(gradientValue)).toBe(true);
+      expect(gradientValue[0]).toEqual(
+        expect.objectContaining({
+          color: expect.objectContaining({ ref: expect.any(String) }),
+          position: 0,
+        }),
+      );
+      expect(gradientValue[1]).toEqual(
+        expect.objectContaining({
+          color: expect.objectContaining({ ref: expect.any(String) }),
+          position: 1,
+        }),
+      );
+    }
+  });
+
+  test("catches validation errors during token type parsing", () => {
+    const result = parseDesignTokens({
+      weight: {
+        $type: "fontWeight",
+        $value: "900",
+      },
+    });
+    expect(result.nodes).toHaveLength(0);
+    expect(result.errors).toEqual([
+      {
+        path: "weight",
+        message: "Token type cannot be determined",
+      },
+    ]);
+  });
+
+  test("allows valid tokens even when other tokens have validation errors", () => {
+    const result = parseDesignTokens({
+      validColor: {
+        $type: "color",
+        $value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+      invalidBorder: {
+        $type: "border",
+        $value: {
+          color: "not-a-color",
+          width: { value: 1, unit: "px" },
+          style: "solid",
+        },
+      },
+    });
+    expect(result.nodes).toHaveLength(1);
+    expect(result.nodes[0].meta.name).toBe("validColor");
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].path).toBe("invalidBorder");
+  });
 });
 
 describe("serializeDesignTokens", () => {
@@ -1157,113 +1569,6 @@ describe("serializeDesignTokens", () => {
     expect(serialized).toEqual(input);
   });
 
-  test("parses token with $value containing reference", () => {
-    const result = parseDesignTokens({
-      semantic: {
-        brand: {
-          $type: "color",
-          $value: "{colors.primary}",
-        },
-      },
-      colors: {
-        $type: "color",
-        primary: {
-          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    expect(result.nodes).toHaveLength(4);
-    const brandToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
-    );
-    expect(brandToken?.meta.nodeType).toBe("token");
-    if (brandToken?.meta.nodeType === "token") {
-      expect(brandToken.meta).toEqual(
-        expect.objectContaining({
-          nodeType: "token",
-          name: "brand",
-          type: "color",
-        }),
-      );
-      // Value should be TokenRef with node ID
-      expect(brandToken.meta.value).toEqual(
-        expect.objectContaining({
-          ref: expect.any(String),
-        }),
-      );
-    }
-  });
-
-  test("allows token with $value reference but no $type", () => {
-    const result = parseDesignTokens({
-      semantic: {
-        brand: {
-          $value: "{colors.primary}",
-        },
-      },
-      colors: {
-        $type: "color",
-        primary: {
-          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    const brandToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
-    );
-    expect(brandToken?.meta.nodeType).toBe("token");
-    if (brandToken?.meta.nodeType === "token") {
-      expect(brandToken.meta).toEqual(
-        expect.objectContaining({
-          nodeType: "token",
-          name: "brand",
-          type: "color", // Type should be resolved from referenced token
-        }),
-      );
-      // Value should be TokenRef with node ID
-      expect(brandToken.meta.value).toEqual(
-        expect.objectContaining({
-          ref: expect.any(String),
-        }),
-      );
-    }
-  });
-
-  test("resolves type recursively for chained token aliases", () => {
-    const result = parseDesignTokens({
-      aliases: {
-        mainBrand: {
-          $value: "{semantic.brand}",
-        },
-      },
-      semantic: {
-        brand: {
-          $value: "{colors.primary}",
-        },
-      },
-      colors: {
-        $type: "color",
-        primary: {
-          $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-
-    const brandToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "brand",
-    );
-    expect(brandToken?.meta?.type).toBe("color");
-
-    const mainBrandToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "mainBrand",
-    );
-    // mainBrand should resolve type through the chain: mainBrand -> brand -> colors.primary
-    expect(mainBrandToken?.meta?.type).toBe("color");
-  });
-
   test("serializes token with $value containing reference", () => {
     const input = {
       semantic: {
@@ -1311,20 +1616,6 @@ describe("serializeDesignTokens", () => {
     expect(serialized).toEqual(input);
   });
 
-  test("allow numeric segment names", () => {
-    const result = parseDesignTokens({
-      blue: {
-        $type: "color",
-        "500": {
-          $value: { colorSpace: "srgb", components: [0, 0, 1] },
-        },
-        alias: { $value: "{blue.500}" },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    expect(result.nodes).toHaveLength(3);
-  });
-
   test("skips $type on token if inherited has the same type", () => {
     const { nodes } = parseDesignTokens({
       colors: {
@@ -1356,256 +1647,6 @@ describe("serializeDesignTokens", () => {
         },
       },
     });
-  });
-
-  test("accepts shadow with component aliases", () => {
-    const result = parseDesignTokens({
-      colors: {
-        $type: "color",
-        black: {
-          $value: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.2 },
-        },
-      },
-      spacing: {
-        $type: "dimension",
-        md: {
-          $value: { value: 4, unit: "px" },
-        },
-      },
-      shadows: {
-        $type: "shadow",
-        primary: {
-          $value: {
-            color: "{colors.black}",
-            offsetX: "{spacing.md}",
-            offsetY: "{spacing.md}",
-            blur: { value: 8, unit: "px" },
-            spread: { value: 0, unit: "px" },
-            inset: false,
-          },
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    expect(result.nodes).toHaveLength(6);
-    const shadowToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "primary",
-    );
-    expect(shadowToken?.meta).toEqual(
-      expect.objectContaining({
-        nodeType: "token",
-        name: "primary",
-        type: "shadow",
-        value: [
-          expect.objectContaining({
-            color: expect.objectContaining({ ref: expect.any(String) }),
-            offsetX: expect.objectContaining({ ref: expect.any(String) }),
-            offsetY: expect.objectContaining({ ref: expect.any(String) }),
-            blur: { value: 8, unit: "px" },
-          }),
-        ],
-      }),
-    );
-  });
-
-  test("accepts border with component aliases", () => {
-    const result = parseDesignTokens({
-      colors: {
-        $type: "color",
-        gray: {
-          $value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
-        },
-      },
-      spacing: {
-        $type: "dimension",
-        sm: {
-          $value: { value: 1, unit: "px" },
-        },
-      },
-      borders: {
-        $type: "border",
-        default: {
-          $value: {
-            color: "{colors.gray}",
-            width: "{spacing.sm}",
-            style: "solid",
-          },
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    expect(result.nodes).toHaveLength(6);
-    const borderToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "default",
-    );
-    expect(borderToken?.meta).toEqual(
-      expect.objectContaining({
-        nodeType: "token",
-        name: "default",
-        type: "border",
-        value: expect.objectContaining({
-          color: expect.objectContaining({ ref: expect.any(String) }),
-          width: expect.objectContaining({ ref: expect.any(String) }),
-          style: "solid",
-        }),
-      }),
-    );
-  });
-
-  test("accepts typography with component aliases", () => {
-    const result = parseDesignTokens({
-      fonts: {
-        $type: "fontFamily",
-        body: {
-          $value: "sans-serif",
-        },
-      },
-      spacing: {
-        $type: "dimension",
-        md: {
-          $value: { value: 16, unit: "px" },
-        },
-      },
-      typography: {
-        $type: "typography",
-        base: {
-          $value: {
-            fontFamily: "{fonts.body}",
-            fontSize: "{spacing.md}",
-            fontWeight: 400,
-            lineHeight: 1.5,
-            letterSpacing: { value: 0, unit: "px" },
-          },
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    expect(result.nodes).toHaveLength(6);
-    const typographyToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "base",
-    );
-    expect(typographyToken?.meta).toEqual(
-      expect.objectContaining({
-        nodeType: "token",
-        name: "base",
-        type: "typography",
-        value: expect.objectContaining({
-          fontFamily: expect.objectContaining({ ref: expect.any(String) }),
-          fontSize: expect.objectContaining({ ref: expect.any(String) }),
-          fontWeight: 400,
-          lineHeight: 1.5,
-          letterSpacing: { value: 0, unit: "px" },
-        }),
-      }),
-    );
-  });
-
-  test("accepts transition with component aliases", () => {
-    const result = parseDesignTokens({
-      durations: {
-        $type: "duration",
-        quick: {
-          $value: { value: 300, unit: "ms" },
-        },
-        slowDelay: {
-          $value: { value: 100, unit: "ms" },
-        },
-      },
-      easing: {
-        $type: "cubicBezier",
-        ease: {
-          $value: [0.25, 0.1, 0.25, 1],
-        },
-      },
-      transitions: {
-        $type: "transition",
-        smooth: {
-          $value: {
-            duration: "{durations.quick}",
-            delay: "{durations.slowDelay}",
-            timingFunction: "{easing.ease}",
-          },
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    expect(result.nodes).toHaveLength(7);
-    const transitionToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "smooth",
-    );
-    expect(transitionToken?.meta).toEqual(
-      expect.objectContaining({
-        nodeType: "token",
-        name: "smooth",
-        type: "transition",
-        value: expect.objectContaining({
-          duration: expect.objectContaining({ ref: expect.any(String) }),
-          delay: expect.objectContaining({ ref: expect.any(String) }),
-          timingFunction: expect.objectContaining({ ref: expect.any(String) }),
-        }),
-      }),
-    );
-  });
-
-  test("accepts gradient with component aliases", () => {
-    const result = parseDesignTokens({
-      colors: {
-        $type: "color",
-        red: {
-          $value: { colorSpace: "srgb", components: [1, 0, 0] },
-        },
-        blue: {
-          $value: { colorSpace: "srgb", components: [0, 0, 1] },
-        },
-      },
-      gradients: {
-        $type: "gradient",
-        redToBlue: {
-          $value: [
-            {
-              color: "{colors.red}",
-              position: 0,
-            },
-            {
-              color: "{colors.blue}",
-              position: 1,
-            },
-          ],
-        },
-      },
-    });
-    expect(result.errors).toHaveLength(0);
-    expect(result.nodes).toHaveLength(5);
-    const gradientToken = result.nodes.find(
-      (n) => n.meta.nodeType === "token" && n.meta.name === "redToBlue",
-    );
-    expect(gradientToken?.meta.nodeType).toBe("token");
-    if (gradientToken?.meta.nodeType === "token") {
-      expect(gradientToken.meta).toEqual(
-        expect.objectContaining({
-          nodeType: "token",
-          name: "redToBlue",
-          type: "gradient",
-        }),
-      );
-      const gradientValue = gradientToken.meta.value as Array<{
-        color: string | object;
-        position: number;
-      }>;
-      expect(Array.isArray(gradientValue)).toBe(true);
-      expect(gradientValue[0]).toEqual(
-        expect.objectContaining({
-          color: expect.objectContaining({ ref: expect.any(String) }),
-          position: 0,
-        }),
-      );
-      expect(gradientValue[1]).toEqual(
-        expect.objectContaining({
-          color: expect.objectContaining({ ref: expect.any(String) }),
-          position: 1,
-        }),
-      );
-    }
   });
 
   test("serializes shadow with component aliases", () => {
@@ -1767,41 +1808,201 @@ describe("serializeDesignTokens", () => {
     const serialized = serializeDesignTokens(nodesToMap(parsed.nodes));
     expect(serialized).toEqual(input);
   });
+});
 
-  test("catches validation errors during token type parsing", () => {
+// ============================================================================
+// LEGACY FORMAT MIGRATION TESTS (2022 → 2025)
+// ============================================================================
+
+describe("parseDesignTokens - Legacy Format Migration", () => {
+  test("parses legacy RGB hex color with explicit type", () => {
     const result = parseDesignTokens({
-      weight: {
-        $type: "fontWeight",
-        $value: "900",
-      },
+      brand: { $type: "color", $value: "#ff0000" },
     });
-    expect(result.nodes).toHaveLength(0);
-    expect(result.errors).toEqual([
-      {
-        path: "weight",
-        message: "Token type cannot be determined",
-      },
-    ]);
+    expect(result.errors).toEqual([]);
+    expect(result.nodes).toHaveLength(1);
   });
 
-  test("allows valid tokens even when other tokens have validation errors", () => {
+  test("parses legacy RGBA hex color with alpha", () => {
     const result = parseDesignTokens({
-      validColor: {
-        $type: "color",
-        $value: { colorSpace: "srgb", components: [1, 0, 0] },
+      transparent: { $type: "color", $value: "#ff000088" },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes[0].meta;
+    if ("nodeType" in token && token.nodeType === "token") {
+      expect((token.value as any).alpha).toBe(0.53);
+    }
+  });
+
+  test("expands 3-digit hex #rgb", () => {
+    const result = parseDesignTokens({
+      red: { $type: "color", $value: "#f00" },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes[0].meta;
+    if ("nodeType" in token && token.nodeType === "token") {
+      expect((token.value as any).hex).toBe("#ff0000");
+    }
+  });
+
+  test("accepts legacy dimension strings in parent group with type", () => {
+    const result = parseDesignTokens({
+      spacing: {
+        $type: "dimension",
+        small: { $value: "8px" },
+        large: { $value: "16px" },
       },
-      invalidBorder: {
+    });
+    expect(result.errors).toEqual([]);
+    const tokens = result.nodes.filter((n) => n.meta.nodeType === "token");
+    expect(tokens).toHaveLength(2);
+  });
+
+  test("accepts legacy duration strings in parent group with type", () => {
+    const result = parseDesignTokens({
+      transitions: {
+        $type: "duration",
+        fast: { $value: "100ms" },
+        slow: { $value: "500ms" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const tokens = result.nodes.filter((n) => n.meta.nodeType === "token");
+    expect(tokens).toHaveLength(2);
+  });
+
+  test("parses legacy shadow with hex color and dimension strings", () => {
+    const result = parseDesignTokens({
+      drop: {
+        $type: "shadow",
+        $value: {
+          color: "#00000088",
+          offsetX: "0.5rem",
+          offsetY: "0.5rem",
+          blur: "1.5rem",
+          spread: "0rem",
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    expect(result.nodes).toHaveLength(1);
+  });
+
+  test("parses legacy border with string values", () => {
+    const result = parseDesignTokens({
+      focus: {
         $type: "border",
         $value: {
-          color: "not-a-color",
-          width: { value: 1, unit: "px" },
+          color: "#000000",
+          width: "2px",
           style: "solid",
         },
       },
     });
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0].meta.name).toBe("validColor");
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].path).toBe("invalidBorder");
+    expect(result.errors).toEqual([]);
+  });
+
+  test("parses legacy gradient with hex colors", () => {
+    const result = parseDesignTokens({
+      sunset: {
+        $type: "gradient",
+        $value: [
+          { color: "#ff0000", position: 0 },
+          { color: "#ffff00", position: 0.5 },
+          { color: "#00ff00", position: 1 },
+        ],
+      },
+    });
+    expect(result.errors).toEqual([]);
+  });
+
+  test("parses legacy typography with string dimensions", () => {
+    const result = parseDesignTokens({
+      heading: {
+        $type: "typography",
+        $value: {
+          fontFamily: "Arial",
+          fontSize: "32px",
+          fontWeight: 700,
+          letterSpacing: "0.1px",
+          lineHeight: "1.2",
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+  });
+
+  test("preserves extensions in legacy tokens", () => {
+    const result = parseDesignTokens({
+      brand: {
+        $type: "color",
+        $value: "#0066ff",
+        $description: "Primary brand",
+        $extensions: { "com.example/custom": { foo: "bar" } },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    const token = result.nodes[0].meta;
+    if ("nodeType" in token && token.nodeType === "token") {
+      expect(token.description).toBe("Primary brand");
+      expect(token.extensions).toEqual({
+        "com.example/custom": { foo: "bar" },
+      });
+    }
+  });
+
+  test("rounds alpha to 2 decimals", () => {
+    const result = parseDesignTokens({
+      color: { $type: "color", $value: "#ff000080" },
+    });
+    expect(result.errors).toHaveLength(0);
+    const token = result.nodes[0].meta;
+    if ("nodeType" in token && token.nodeType === "token") {
+      expect((token.value as any).alpha).toBe(0.5);
+    }
+  });
+
+  test("handles zero dimension", () => {
+    const result = parseDesignTokens({
+      spacing: {
+        $type: "dimension",
+        zero: { $value: "0px" },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+  });
+
+  test("handles deprecated tokens", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        old: {
+          $value: "#ff0000",
+          $deprecated: "Use newColor instead",
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    const token = result.nodes.find((n) => n.meta.nodeType === "token");
+    if (token && token.meta.nodeType === "token") {
+      expect(token.meta.deprecated).toBe("Use newColor instead");
+    }
+  });
+
+  test("handles shadow with inset flag", () => {
+    const result = parseDesignTokens({
+      inset: {
+        $type: "shadow",
+        $value: {
+          color: "#000000",
+          offsetX: "2px",
+          offsetY: "2px",
+          blur: "4px",
+          spread: "0px",
+          inset: true,
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
   });
 });

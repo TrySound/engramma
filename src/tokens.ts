@@ -12,7 +12,6 @@ import {
 import {
   nameSchema,
   referenceSchema,
-  tokenSchema,
   groupSchema,
   shadowValue,
   transitionValue,
@@ -23,6 +22,7 @@ import {
   type Group,
   type Token,
 } from "./dtcg.schema";
+import { backwardCompatibleTokenSchema } from "./legacy.schema";
 
 type TreeNodeMeta = GroupMeta | TokenMeta;
 
@@ -173,7 +173,7 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     }
     // explicitly distinct token from group based on $value
     const payload = isTokenObject(data)
-      ? tokenSchema.safeParse(data)
+      ? backwardCompatibleTokenSchema.safeParse(data)
       : groupSchema.safeParse(data);
     if (!payload.success) {
       recordError(path.join("."), prettifyError(payload.error));
@@ -204,6 +204,10 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
   };
 
   for (const [name, value] of Object.entries(input)) {
+    // Skip unknown $ fields at root level
+    if (name.startsWith("$")) {
+      continue;
+    }
     parseNode(undefined, name, value, undefined);
   }
 

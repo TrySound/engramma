@@ -142,17 +142,19 @@ export const cubicBezierValue = z.tuple([
 
 export const numberValue = z.number();
 
+export const strokeStyleString = z.enum([
+  "solid",
+  "dashed",
+  "dotted",
+  "double",
+  "groove",
+  "ridge",
+  "outset",
+  "inset",
+]);
+
 export const strokeStyleValue = z.union([
-  z.enum([
-    "solid",
-    "dashed",
-    "dotted",
-    "double",
-    "groove",
-    "ridge",
-    "outset",
-    "inset",
-  ]),
+  strokeStyleString,
   z.object({
     dashArray: z.array(dimensionValue).min(1),
     lineCap: z.enum(["round", "butt", "square"]),
