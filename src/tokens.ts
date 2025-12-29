@@ -165,8 +165,10 @@ export const parseDesignTokens = (input: unknown): ParseResult => {
     inheritedType: TokenType | undefined,
   ) => {
     const path = parentPath ? [...parentPath, name] : [name];
-    if (!nameSchema.safeParse(name).success && name !== "$root") {
-      recordError(path.join("."), `Invalid name "${name}"`);
+    const nameValidation = nameSchema.safeParse(name);
+    if (!nameValidation.success && name !== "$root") {
+      const errorMessage = prettifyError(nameValidation.error);
+      recordError(path.join("."), errorMessage);
       return;
     }
     // explicitly distinct token from group based on $value

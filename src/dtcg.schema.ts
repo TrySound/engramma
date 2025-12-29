@@ -3,14 +3,51 @@
 
 import { z } from "zod";
 
-// token name does not start with $ with the only exception for $root
-export const nameSchema = z.string().regex(/^[a-zA-Z0-9_][a-zA-Z0-9_$-]*$/);
+// token and group names MUST NOT:
+// - start with '$' (reserved prefix per DTCG spec)
+// - contain '{' (used in references syntax)
+// - contain '}' (used in references syntax)
+// - contain '.' (used in path separators within references)
+export const nameSchema = z
+  .string()
+  .refine(
+    (name) => !name.startsWith("$"),
+    "Token and group names must not start with '$'",
+  )
+  .refine(
+    (name) => !name.includes("{"),
+    "Token and group names must not contain '{'",
+  )
+  .refine(
+    (name) => !name.includes("}"),
+    "Token and group names must not contain '}'",
+  )
+  .refine(
+    (name) => !name.includes("."),
+    "Token and group names must not contain '.'",
+  );
 
 // references use dot-separated paths with curly braces like {colors.primary}
-// should match $root token
+// each segment must be a valid name per nameSchema
+// special case: $root token is allowed within references as it uses the $ prefix
 export const referenceSchema = z
   .string()
-  .regex(/^\{[a-zA-Z0-9_$][a-zA-Z0-9_$-]*(\.[a-zA-Z0-9_$][a-zA-Z0-9_$-]*)*\}$/);
+  .refine(
+    (value) => value.startsWith("{") && value.endsWith("}"),
+    "Reference must be enclosed in curly braces",
+  )
+  .refine((value) => {
+    const content = value.slice(1, -1);
+    const segments = content.split(".");
+    return (
+      segments.length > 0 &&
+      segments.every((segment) => {
+        // Allow $root as special case within references
+        if (segment === "$root") return true;
+        return nameSchema.safeParse(segment).success;
+      })
+    );
+  }, "Each segment in reference must be a valid name");
 
 // Token types
 const tokenType = z.enum([

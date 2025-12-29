@@ -68,7 +68,7 @@ describe("parseDesignTokens", () => {
     });
     expect(result.nodes).toHaveLength(0);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain('Invalid name "$invalid"');
+    expect(result.errors[0].message).toContain("must not start with '$'");
   });
 
   test("excludes token with forbidden characters from tree", () => {
@@ -93,6 +93,181 @@ describe("parseDesignTokens", () => {
     });
     expect(result.nodes).toHaveLength(2);
     expect(result.errors).toHaveLength(0);
+  });
+
+  test("rejects names starting with '$' (except $root)", () => {
+    const result = parseDesignTokens({
+      $invalid: {
+        $type: "color",
+        $value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    });
+    expect(result.nodes).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain("must not start with '$'");
+  });
+
+  test("rejects names containing '{'", () => {
+    const result = parseDesignTokens({
+      "bad{name": {
+        $type: "color",
+        $value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    });
+    expect(result.nodes).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain("must not contain '{'");
+  });
+
+  test("rejects names containing '}'", () => {
+    const result = parseDesignTokens({
+      "bad}name": {
+        $type: "color",
+        $value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    });
+    expect(result.nodes).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain("must not contain '}'");
+  });
+
+  test("rejects names containing '.'", () => {
+    const result = parseDesignTokens({
+      "bad.name": {
+        $type: "color",
+        $value: { colorSpace: "srgb", components: [1, 0, 0] },
+      },
+    });
+    expect(result.nodes).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain("must not contain '.'");
+  });
+
+  test("rejects group names containing forbidden characters", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        "bad.primary": {
+          $value: { colorSpace: "srgb", components: [1, 0, 0] },
+        },
+      },
+    });
+    // The group "colors" is valid, but the token "bad.primary" is invalid
+    expect(result.nodes).toHaveLength(1);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain("must not contain '.'");
+  });
+
+  test("accepts valid reference with multiple segments", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        primary: {
+          $type: "color",
+          $value: "{colors.primary.base}",
+        },
+      },
+      colors: {
+        primary: {
+          base: {
+            $type: "color",
+            $value: { colorSpace: "srgb", components: [0, 0.4, 0.8] },
+          },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes.length).toBeGreaterThan(0);
+  });
+
+  test("accepts reference with $root segment", () => {
+    const result = parseDesignTokens({
+      colors: {
+        $type: "color",
+        $root: {
+          $value: { colorSpace: "srgb", components: [1, 1, 1] },
+        },
+        derived: {
+          $value: "{colors.$root}",
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes.length).toBeGreaterThan(0);
+  });
+
+  test("accepts reference with all valid segment names", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        primary: {
+          $type: "color",
+          $value: "{colors.primary}",
+        },
+      },
+      colors: {
+        primary: {
+          $type: "color",
+          $value: { colorSpace: "srgb", components: [0.5, 0.5, 0.5] },
+        },
+      },
+    });
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes.length).toBeGreaterThan(0);
+  });
+
+  test("rejects reference with segment starting with '$' (except $root)", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        primary: {
+          $type: "color",
+          $value: "{$invalid.name}",
+        },
+      },
+    });
+    // The semantic group is created but primary token is rejected due to invalid reference
+    expect(result.nodes).toHaveLength(1);
+    expect(result.errors).toHaveLength(1);
+  });
+
+  test("rejects reference with segment containing forbidden character", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        primary: {
+          $type: "color",
+          $value: "{colors.bad.name.here}",
+        },
+      },
+    });
+    // The semantic group is created but primary token is rejected due to invalid reference
+    expect(result.nodes).toHaveLength(1);
+    expect(result.errors).toHaveLength(1);
+  });
+
+  test("rejects reference missing opening brace", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        primary: {
+          $type: "color",
+          $value: "colors.primary}",
+        },
+      },
+    });
+    // The semantic group is created but primary token is rejected due to invalid reference
+    expect(result.nodes).toHaveLength(1);
+    expect(result.errors).toHaveLength(1);
+  });
+
+  test("rejects reference missing closing brace", () => {
+    const result = parseDesignTokens({
+      semantic: {
+        primary: {
+          $type: "color",
+          $value: "{colors.primary",
+        },
+      },
+    });
+    // The semantic group is created but primary token is rejected due to invalid reference
+    expect(result.nodes).toHaveLength(1);
+    expect(result.errors).toHaveLength(1);
   });
 
   test("excludes token without determinable type", () => {
