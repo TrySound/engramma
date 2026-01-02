@@ -1,0 +1,67 @@
+<style>
+  .logo {
+    font-family: Inter, sans-serif;
+    text-align: center;
+    background-color: #1e1e1e;
+    padding: 15% 0;
+  }
+
+  .logo-name {
+    font-size: 200px;
+    font-weight: bold;
+    text-shadow:
+      -2px -2px #ff0000,
+      2px 2px #00ffff;
+    color: #ffeeff;
+    display: grid;
+    margin-bottom: 4%;
+    --top-left: 35%;
+    --top-right: 50%;
+    --bottom-left: 75%;
+    --bottom-right: 65%;
+  }
+
+  .logo-name-top {
+    grid-column: 1 / 1;
+    grid-row: 1 / 1;
+    translate: -2px 0;
+    clip-path: polygon(0 0, 100% 0, 100% var(--top-right), 0 var(--top-left));
+  }
+
+  .logo-name-middle {
+    grid-column: 1 / 1;
+    grid-row: 1 / 1;
+    translate: -10px 0;
+    clip-path: polygon(
+      0 calc(var(--top-left) + 1%),
+      100% calc(var(--top-right) + 1%),
+      100% calc(var(--bottom-right) - 1%),
+      0 calc(var(--bottom-left) - 1%)
+    );
+  }
+
+  .logo-name-bottom {
+    grid-column: 1 / 1;
+    grid-row: 1 / 1;
+    clip-path: polygon(
+      0 var(--bottom-left),
+      100% var(--bottom-right),
+      100% 100%,
+      0 100%
+    );
+  }
+
+  .logo-description {
+    font-size: 50px;
+    color: #adfcff;
+  }
+</style>
+
+<div class="logo">
+  <div class="logo-name">
+    <div class="logo-name-top">Engramma</div>
+    <div class="logo-name-middle">Engramma</div>
+    <div class="logo-name-bottom">Engramma</div>
+  </div>
+  <div class="logo-description">A home for your design tokens</div>
+</div>
