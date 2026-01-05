@@ -502,10 +502,21 @@
   {@const children = treeState
     .getChildren(parentId)
     .filter((node) => visibleNodes.size === 0 || visibleNodes.has(node.nodeId))}
+  {@const tokens = children.filter((node) => node.meta.nodeType === "token")}
   {@const groups = children.filter(
     (node) => node.meta.nodeType === "token-group",
   )}
-  {@const tokens = children.filter((node) => node.meta.nodeType === "token")}
+  <!-- render tokens first and then groups to strictly co-locate
+  headings with content which can have nested headings -->
+  {#if tokens.length > 0}
+    <div class="token-grid">
+      {#each tokens as node, index (node.nodeId)}
+        {#if node.meta.nodeType === "token"}
+          {@render tokenCard(node, node.meta, index, parentId)}
+        {/if}
+      {/each}
+    </div>
+  {/if}
   {#each groups as group (group.nodeId)}
     {#if group.meta.nodeType === "token-group"}
       <svelte:element this={`h${depth}`}>
@@ -519,15 +530,6 @@
       {@render renderNodes(group.nodeId, depth + 1)}
     {/if}
   {/each}
-  {#if tokens.length > 0}
-    <div class="token-grid">
-      {#each tokens as node, index (node.nodeId)}
-        {#if node.meta.nodeType === "token"}
-          {@render tokenCard(node, node.meta, index, parentId)}
-        {/if}
-      {/each}
-    </div>
-  {/if}
 {/snippet}
 
 <div class="styleguide">
