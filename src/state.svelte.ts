@@ -12,6 +12,13 @@ import {
 import { serializeDesignTokens } from "./tokens";
 import { setDataInUrl } from "./url-data";
 
+export type SetMeta = {
+  nodeType: "token-set";
+  name: string;
+  description?: string;
+  extensions?: Record<string, unknown>;
+};
+
 export type GroupMeta = {
   nodeType: "token-group";
   name: string;
@@ -37,6 +44,10 @@ export const findTokenType = (
   node: TreeNode<TreeNodeMeta>,
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ): Value["type"] | undefined => {
+  // Token-set nodes don't have types
+  if (node.meta.nodeType === "token-set") {
+    return;
+  }
   // If token has explicit type, use it
   if (node.meta.type) {
     return node.meta.type;
@@ -50,7 +61,6 @@ export const findTokenType = (
     }
     currentParentId = parentNode?.parentId;
   }
-  return undefined;
 };
 
 type ResolveContext = {
@@ -319,7 +329,7 @@ export const isAliasCircular = (
   return false; // No circular dependency
 };
 
-export type TreeNodeMeta = GroupMeta | TokenMeta;
+export type TreeNodeMeta = GroupMeta | TokenMeta | SetMeta;
 
 export class TreeState<Meta> {
   #store = new TreeStore<Meta>();
@@ -340,7 +350,23 @@ export class TreeState<Meta> {
 
   #updateUrl(): void {
     const allNodes = this.#store.nodes() as Map<string, TreeNode<TreeNodeMeta>>;
-    const serialized = serializeDesignTokens(allNodes);
+    // remove set node from data and serialize as DTCG format module
+    // @todo use resolve serializer when implemented
+    const setIds = new Set<undefined | string>();
+    for (const node of allNodes.values()) {
+      if (node.meta.nodeType === "token-set") {
+        setIds.add(node.nodeId);
+        allNodes.delete(node.nodeId);
+      }
+    }
+    for (const node of allNodes.values()) {
+      if (setIds.has(node.parentId)) {
+        node.parentId = undefined;
+      }
+    }
+    const serialized = serializeDesignTokens(
+      allNodes as Map<string, TreeNode<TokenMeta | GroupMeta>>,
+    );
     setDataInUrl(serialized).catch((error) => {
       console.error("Failed to sync design tokens to URL:", error);
     });

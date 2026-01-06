@@ -502,10 +502,14 @@
   {@const children = treeState
     .getChildren(parentId)
     .filter((node) => visibleNodes.size === 0 || visibleNodes.has(node.nodeId))}
+  {@const sets = children.filter((node) => node.meta.nodeType === "token-set")}
   {@const tokens = children.filter((node) => node.meta.nodeType === "token")}
   {@const groups = children.filter(
     (node) => node.meta.nodeType === "token-group",
   )}
+  {#each sets as set (set.nodeId)}
+    {@render renderNodes(set.nodeId, depth)}
+  {/each}
   <!-- render tokens first and then groups to strictly co-locate
   headings with content which can have nested headings -->
   {#if tokens.length > 0}
@@ -518,17 +522,15 @@
     </div>
   {/if}
   {#each groups as group (group.nodeId)}
-    {#if group.meta.nodeType === "token-group"}
-      <svelte:element this={`h${depth}`}>
-        {titleCase(noCase(group.meta.name))}
-      </svelte:element>
-      {#if group.meta.description}
-        <p>
-          {group.meta.description}
-        </p>
-      {/if}
-      {@render renderNodes(group.nodeId, depth + 1)}
+    <svelte:element this={`h${depth}`}>
+      {titleCase(noCase(group.meta.name))}
+    </svelte:element>
+    {#if group.meta.description}
+      <p>
+        {group.meta.description}
+      </p>
     {/if}
+    {@render renderNodes(group.nodeId, depth + 1)}
   {/each}
 {/snippet}
 

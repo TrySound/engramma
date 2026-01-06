@@ -1,18 +1,39 @@
 <script lang="ts">
   import stringify from "json-stringify-pretty-compact";
   import { X } from "@lucide/svelte";
-  import { treeState } from "./state.svelte";
+  import { treeState, type GroupMeta, type TokenMeta } from "./state.svelte";
   import { generateCssVariables } from "./css-variables";
   import { generateScssVariables } from "./scss";
   import { serializeDesignTokens } from "./tokens";
   import Code from "./code.svelte";
+  import type { TreeNode } from "./store";
 
   let exportMode = $state<"json" | "css" | "scss">("json");
 
-  const allTokens = $derived(treeState.nodes());
-  const jsonOutput = $derived(stringify(serializeDesignTokens(allTokens)));
-  const cssOutput = $derived(generateCssVariables(allTokens));
-  const scssOutput = $derived(generateScssVariables(allTokens));
+  const nodes = $derived(treeState.nodes());
+  const jsonOutput = $derived.by(() => {
+    const filteredNodes = new Map(nodes);
+    // remove set node from data and serialize as DTCG format module
+    const setIds = new Set<undefined | string>();
+    for (const node of filteredNodes.values()) {
+      if (node.meta.nodeType === "token-set") {
+        setIds.add(node.nodeId);
+        filteredNodes.delete(node.nodeId);
+      }
+    }
+    for (const node of filteredNodes.values()) {
+      if (setIds.has(node.parentId)) {
+        node.parentId = undefined;
+      }
+    }
+    return stringify(
+      serializeDesignTokens(
+        filteredNodes as Map<string, TreeNode<TokenMeta | GroupMeta>>,
+      ),
+    );
+  });
+  const cssOutput = $derived(generateCssVariables(nodes));
+  const scssOutput = $derived(generateScssVariables(nodes));
 </script>
 
 <dialog id="export-dialog" class="dialog" closedby="any">

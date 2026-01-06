@@ -64,7 +64,14 @@
     ]);
   });
 
-  const rootNodes = $derived(treeState.getChildren(undefined));
+  const rootNodes = $derived.by(() => {
+    const rootNodes = treeState.getChildren(undefined);
+    // Get children of Base token-set if it exists
+    const baseSet = rootNodes.find(
+      (node) => node.meta.nodeType === "token-set",
+    );
+    return baseSet ? treeState.getChildren(baseSet.nodeId) : rootNodes;
+  });
 
   let selectedItems = new SvelteSet<string>();
 

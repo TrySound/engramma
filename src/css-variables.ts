@@ -1,6 +1,6 @@
 import { kebabCase, noCase } from "change-case";
 import { compareTreeNodes, type TreeNode } from "./store";
-import { type GroupMeta, type TokenMeta } from "./state.svelte";
+import type { TreeNodeMeta } from "./state.svelte";
 import { serializeColor, parseColor } from "./color";
 import type {
   ColorValue,
@@ -22,8 +22,6 @@ import {
   isNodeRef,
   type NodeRef,
 } from "./schema";
-
-type TreeNodeMeta = GroupMeta | TokenMeta;
 
 export const toDimensionValue = (value: DimensionValue) => {
   return `${value.value}${value.unit}`;
@@ -56,7 +54,8 @@ export const referenceToVariable = (
   let currentId: string | undefined = nodeRef.ref;
   while (currentId) {
     const node = nodes.get(currentId);
-    if (!node) {
+    // token set is the root of the tree
+    if (!node || node.meta.nodeType === "token-set") {
       break;
     }
     path.unshift(node.meta.name);
@@ -185,6 +184,16 @@ const processNode = (
   lines: string[],
   nodes: Map<string, TreeNode<TreeNodeMeta>>,
 ) => {
+  // token-set is intended for grouping globals
+  // and should be omitted in generated variables
+  if (node.meta.nodeType === "token-set") {
+    const children = childrenByParent.get(node.nodeId) ?? [];
+    for (const child of children) {
+      processNode(child, path, childrenByParent, lines, nodes);
+    }
+    return;
+  }
+
   // group is only added to variable name
   if (node.meta.nodeType === "token-group") {
     const children = childrenByParent.get(node.nodeId) ?? [];

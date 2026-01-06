@@ -2,9 +2,7 @@ import { test, expect, describe } from "vitest";
 import { generateScssVariables } from "./scss";
 import { parseDesignTokens } from "./tokens";
 import type { TreeNode } from "./store";
-import type { GroupMeta, TokenMeta } from "./state.svelte";
-
-type TreeNodeMeta = GroupMeta | TokenMeta;
+import type { TreeNodeMeta } from "./state.svelte";
 
 // Helper to convert array to Map
 const nodesToMap = (nodes: TreeNode<TreeNodeMeta>[]) => {

@@ -103,10 +103,15 @@
     types = new Set<Value["type"]>(),
   ) => {
     for (const child of treeState.getChildren(node.nodeId)) {
-      if (child.meta.type) {
-        types.add(child.meta.type);
+      if (
+        child.meta.nodeType === "token-group" ||
+        child.meta.nodeType === "token"
+      ) {
+        if (child.meta.type) {
+          types.add(child.meta.type);
+        }
+        getDescendantTypes(child, types);
       }
-      getDescendantTypes(child, types);
     }
     return types;
   };
@@ -116,7 +121,11 @@
   ): ("mixed" | Value["type"])[] => {
     const inheritedType = findTokenType(node, treeState.nodes());
     // cannot change inherited type
-    if (inheritedType && node.meta.type === undefined) {
+    if (
+      inheritedType &&
+      node.meta.nodeType === "token-group" &&
+      node.meta.type === undefined
+    ) {
       return [inheritedType];
     }
     const descendantTypes = getDescendantTypes(node);
@@ -482,31 +491,32 @@
         </div>
       {/if}
 
-      <div class="form-group">
-        <div class="form-checkbox-group">
-          <input
-            id="deprecated-input"
-            class="a-checkbox"
-            type="checkbox"
-            checked={node?.meta.deprecated !== undefined}
-            onchange={(e) => handleDeprecatedChange(e.currentTarget.checked)}
-          />
-          <label class="a-label" for="deprecated-input"> Deprecated </label>
+      {#if node?.meta.nodeType === "token-group" || node?.meta.nodeType === "token"}
+        <div class="form-group">
+          <div class="form-checkbox-group">
+            <input
+              id="deprecated-input"
+              class="a-checkbox"
+              type="checkbox"
+              checked={node?.meta.deprecated !== undefined}
+              onchange={(e) => handleDeprecatedChange(e.currentTarget.checked)}
+            />
+            <label class="a-label" for="deprecated-input"> Deprecated </label>
+          </div>
+          {#if node?.meta.deprecated !== undefined}
+            {@const meta = node.meta}
+            <textarea
+              class="a-field"
+              placeholder="Reason for deprecation"
+              bind:value={
+                () =>
+                  typeof meta.deprecated === "string" ? meta.deprecated : "",
+                (reason) => handleDeprecatedChange(reason)
+              }
+            ></textarea>
+          {/if}
         </div>
-        {#if node?.meta.deprecated !== undefined}
-          <textarea
-            class="a-field"
-            placeholder="Reason for deprecation"
-            bind:value={
-              () =>
-                typeof node?.meta.deprecated === "string"
-                  ? node.meta.deprecated
-                  : "",
-              (reason) => handleDeprecatedChange(reason)
-            }
-          ></textarea>
-        {/if}
-      </div>
+      {/if}
 
       {#if rawValue?.type === "color"}
         <div class="form-group">

@@ -1,7 +1,11 @@
 <script lang="ts">
-  import { treeState } from "./state.svelte";
+  import { generateKeyBetween } from "fractional-indexing";
+  import { treeState, type SetMeta } from "./state.svelte";
   import { parseDesignTokens } from "./tokens";
   import { parseCssVariables } from "./css-variables";
+  import type { TreeNode } from "./store";
+
+  const zeroIndex = generateKeyBetween(null, null);
 
   let dialogElement: undefined | HTMLDialogElement;
   let fileInputElement: undefined | HTMLInputElement;
@@ -47,7 +51,20 @@
     const nodes = importedResult?.nodes ?? [];
     treeState.transact((tx) => {
       tx.clear();
+      const baseSetNode: TreeNode<SetMeta> = {
+        nodeId: crypto.randomUUID(),
+        parentId: undefined,
+        index: zeroIndex,
+        meta: {
+          nodeType: "token-set",
+          name: "Base",
+        },
+      };
+      tx.set(baseSetNode);
       for (const node of nodes) {
+        if (node.parentId === undefined) {
+          node.parentId = baseSetNode.nodeId;
+        }
         tx.set(node);
       }
     });
