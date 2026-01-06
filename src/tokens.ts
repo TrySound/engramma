@@ -124,7 +124,7 @@ const serializeTokenValue = (
   }
 };
 
-export type ParseResult = {
+type ParseResult = {
   nodes: TreeNode<TreeNodeMeta>[];
   errors: Array<{ path: string; message: string }>;
 };

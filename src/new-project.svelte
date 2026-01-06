@@ -2,6 +2,7 @@
   import { generateKeyBetween } from "fractional-indexing";
   import { treeState, type SetMeta } from "./state.svelte";
   import { parseDesignTokens } from "./tokens";
+  import { parseTokenResolver, isResolverFormat } from "./resolver";
   import { parseCssVariables } from "./css-variables";
   import type { TreeNode } from "./store";
 
@@ -11,9 +12,9 @@
   let fileInputElement: undefined | HTMLInputElement;
   let dropzoneElement: undefined | HTMLElement;
   let inputMode: "upload" | "text" = "upload";
-  let importType: "unknown" | "json" | "css" = "unknown";
+  let importType: "unknown" | "json" | "css" | "resolver" = "unknown";
   let importedContent = "";
-  let importedResult: undefined | ReturnType<typeof parseDesignTokens>;
+  let importedResult: undefined | ReturnType<typeof parseTokenResolver>;
   let isDragOver = false;
   let isInputTouched = false;
 
@@ -23,10 +24,22 @@
 
     // Try JSON
     try {
-      const result = parseDesignTokens(JSON.parse(content));
-      if (result.nodes.length > 0 || result.errors.length > 0) {
-        importType = "json";
-        importedResult = result;
+      const parsed = JSON.parse(content);
+
+      // Check if it's resolver format
+      if (isResolverFormat(parsed)) {
+        const result = parseTokenResolver(parsed);
+        if (result.nodes.length > 0 || result.errors.length > 0) {
+          importType = "resolver";
+          importedResult = result;
+        }
+      } else {
+        // Try as tokens format
+        const result = parseDesignTokens(parsed);
+        if (result.nodes.length > 0 || result.errors.length > 0) {
+          importType = "json";
+          importedResult = result;
+        }
       }
     } catch {}
 
@@ -49,25 +62,34 @@
 
     // Update state
     const nodes = importedResult?.nodes ?? [];
-    treeState.transact((tx) => {
-      tx.clear();
-      const baseSetNode: TreeNode<SetMeta> = {
-        nodeId: crypto.randomUUID(),
-        parentId: undefined,
-        index: zeroIndex,
-        meta: {
-          nodeType: "token-set",
-          name: "Base",
-        },
-      };
-      tx.set(baseSetNode);
-      for (const node of nodes) {
-        if (node.parentId === undefined) {
-          node.parentId = baseSetNode.nodeId;
+    if (nodes.some((node) => node.meta.nodeType === "token-set")) {
+      treeState.transact((tx) => {
+        tx.clear();
+        for (const node of nodes) {
+          tx.set(node);
         }
-        tx.set(node);
-      }
-    });
+      });
+    } else {
+      treeState.transact((tx) => {
+        tx.clear();
+        const baseSetNode: TreeNode<SetMeta> = {
+          nodeId: crypto.randomUUID(),
+          parentId: undefined,
+          index: zeroIndex,
+          meta: {
+            nodeType: "token-set",
+            name: "Base",
+          },
+        };
+        tx.set(baseSetNode);
+        for (const node of nodes) {
+          if (node.parentId === undefined) {
+            node.parentId = baseSetNode.nodeId;
+          }
+          tx.set(node);
+        }
+      });
+    }
 
     // Close and reset
     dialogElement?.close();
@@ -167,7 +189,7 @@
     >
       paste as text
     </button>
-    with JSON (DTCG) or CSS custom properties
+    with JSON (DTCG, Resolver 2025.10) or CSS custom properties
   </p>
 
   <p>
@@ -177,6 +199,9 @@
       {/if}
       {#if importType === "css"}
         CSS Variables
+      {/if}
+      {#if importType === "resolver"}
+        JSON (Resolver 2025.10)
       {/if}
       {#if importType === "unknown"}
         Unknown

@@ -252,3 +252,71 @@ export type ShadowObject = z.infer<typeof shadowObject>;
 export type ShadowValue = z.infer<typeof shadowValue>;
 export type GradientValue = z.infer<typeof gradientValue>;
 export type TypographyValue = z.infer<typeof typographyValue>;
+
+// Design Tokens Resolver Module 2025.10
+// https://www.designtokens.org/tr/2025.10/resolver/
+
+// Single source is a Record where keys are group/token names
+// values are Group or Token objects
+export const resolverSourceSchema = z.record(
+  nameSchema,
+  // avoid checking to not cut of nested groups and tokens
+  // but enforce as a type
+  z.unknown() as z.ZodType<Token | Group>,
+);
+
+export type ResolverSource = z.infer<typeof resolverSourceSchema>;
+
+// Set in resolutionOrder array - collection of design tokens
+export const resolverSetSchema = z.object({
+  type: z.literal("set"),
+  name: nameSchema, // required, unique identifier within resolutionOrder
+  sources: z.array(resolverSourceSchema), // non-optional, can be empty
+  description: z.string().optional(),
+  $extensions: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type ResolverSet = z.infer<typeof resolverSetSchema>;
+
+// Modifier contexts - map of context name to sources
+export const resolverModifierContextsSchema = z.record(
+  z.string(), // context name (e.g., "light", "dark")
+  z.array(resolverSourceSchema), // sources array (non-optional)
+);
+
+// Modifier in resolutionOrder - for documentation, parsed but skipped
+export const resolverModifierSchema = z.object({
+  type: z.literal("modifier"),
+  name: nameSchema, // required, unique identifier within resolutionOrder
+  contexts: resolverModifierContextsSchema, // non-optional
+  description: z.string().optional(),
+  default: z.string().optional(),
+  $extensions: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type ResolverModifier = z.infer<typeof resolverModifierSchema>;
+
+// Item in resolutionOrder array
+export const resolutionOrderItemSchema = z.union([
+  resolverSetSchema,
+  resolverModifierSchema,
+]);
+
+export type ResolutionOrderItem = z.infer<typeof resolutionOrderItemSchema>;
+
+// Unsupported root-level sets and modifiers
+// These reject any object with properties - only allow undefined or empty object
+const unsupportedSetsSchema = z.object({}).strict().optional();
+const unsupportedModifiersSchema = z.object({}).strict().optional();
+
+// Resolver document following Design Tokens Resolver Module 2025.10
+export const resolverDocumentSchema = z.object({
+  version: z.literal("2025.10"),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  sets: unsupportedSetsSchema.optional(),
+  modifiers: unsupportedModifiersSchema.optional(),
+  resolutionOrder: z.array(resolutionOrderItemSchema),
+});
+
+export type ResolverDocument = z.infer<typeof resolverDocumentSchema>;

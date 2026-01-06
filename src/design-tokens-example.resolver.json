@@ -1,0 +1,225 @@
+{
+  "version": "2025.10",
+  "name": "Complete Design Tokens Example",
+  "description": "A fully inlined resolver without any external file references",
+  "resolutionOrder": [
+    {
+      "type": "set",
+      "name": "Foundation",
+      "description": "Foundation tokens used across all themes",
+      "sources": [
+        {
+          "color": {
+            "brand": {
+              "primary": {
+                "$type": "color",
+                "$value": {
+                  "colorSpace": "srgb",
+                  "components": [0.2, 0.5, 0.8]
+                }
+              },
+              "secondary": {
+                "$type": "color",
+                "$value": {
+                  "colorSpace": "srgb",
+                  "components": [0.9, 0.6, 0.2]
+                }
+              }
+            }
+          },
+          "space": {
+            "base": {
+              "$type": "dimension",
+              "$value": {
+                "value": 4,
+                "unit": "px"
+              }
+            },
+            "small": {
+              "$type": "dimension",
+              "$value": {
+                "value": 8,
+                "unit": "px"
+              }
+            },
+            "medium": {
+              "$type": "dimension",
+              "$value": {
+                "value": 16,
+                "unit": "px"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "set",
+      "name": "Components",
+      "description": "Component-level token overrides",
+      "sources": [
+        {
+          "button": {
+            "padding": {
+              "$type": "dimension",
+              "$value": {
+                "value": 12,
+                "unit": "px"
+              }
+            },
+            "background": {
+              "$type": "color",
+              "$value": {
+                "colorSpace": "srgb",
+                "components": [0.2, 0.5, 0.8]
+              }
+            },
+            "text": {
+              "$type": "color",
+              "$value": {
+                "colorSpace": "srgb",
+                "components": [1, 1, 1]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "modifier",
+      "name": "Theme",
+      "description": "Color theme modifier",
+      "contexts": {
+        "light": [
+          {
+            "color": {
+              "text": {
+                "default": {
+                  "$type": "color",
+                  "$value": {
+                    "colorSpace": "srgb",
+                    "components": [0, 0, 0]
+                  }
+                }
+              },
+              "background": {
+                "default": {
+                  "$type": "color",
+                  "$value": {
+                    "colorSpace": "srgb",
+                    "components": [1, 1, 1]
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "dark": [
+          {
+            "color": {
+              "text": {
+                "default": {
+                  "$type": "color",
+                  "$value": {
+                    "colorSpace": "srgb",
+                    "components": [1, 1, 1]
+                  }
+                }
+              },
+              "background": {
+                "default": {
+                  "$type": "color",
+                  "$value": {
+                    "colorSpace": "srgb",
+                    "components": [0.1, 0.1, 0.1]
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "highContrast": [
+          {
+            "color": {
+              "text": {
+                "default": {
+                  "$type": "color",
+                  "$value": {
+                    "colorSpace": "srgb",
+                    "components": [0, 0, 0]
+                  }
+                }
+              },
+              "background": {
+                "default": {
+                  "$type": "color",
+                  "$value": {
+                    "colorSpace": "srgb",
+                    "components": [1, 1, 1]
+                  }
+                }
+              },
+              "border": {
+                "default": {
+                  "$type": "color",
+                  "$value": {
+                    "colorSpace": "srgb",
+                    "components": [0, 0, 0]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "default": "light"
+    },
+    {
+      "type": "modifier",
+      "name": "Density",
+      "description": "UI density modifier for compact/comfortable/spacious layouts",
+      "contexts": {
+        "compact": [
+          {
+            "space": {
+              "component": {
+                "$type": "dimension",
+                "$value": {
+                  "value": 6,
+                  "unit": "px"
+                }
+              }
+            }
+          }
+        ],
+        "comfortable": [
+          {
+            "space": {
+              "component": {
+                "$type": "dimension",
+                "$value": {
+                  "value": 12,
+                  "unit": "px"
+                }
+              }
+            }
+          }
+        ],
+        "spacious": [
+          {
+            "space": {
+              "component": {
+                "$type": "dimension",
+                "$value": {
+                  "value": 20,
+                  "unit": "px"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "default": "comfortable"
+    }
+  ]
+}
