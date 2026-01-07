@@ -403,7 +403,11 @@
 <div {id} popover="auto" class="a-popover editor-popover" {...rest}>
   <div class="form-header">
     <h2 class="a-panel-title">
-      {node?.meta.nodeType === "token-group" ? "Group" : "Token"}
+      {node?.meta.nodeType === "token-set"
+        ? "Token Set"
+        : node?.meta.nodeType === "token-group"
+          ? "Group"
+          : "Token"}
     </h2>
     <button
       class="a-button"

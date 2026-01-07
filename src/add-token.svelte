@@ -132,7 +132,10 @@
       insertAfterIndex = generateKeyBetween(lastRootIndex, null);
     } else {
       const selectedNode = treeState.getNode(Array.from(selectedItems)[0]);
-      if (selectedNode?.meta.nodeType === "token-group") {
+      if (
+        selectedNode?.meta.nodeType === "token-set" ||
+        selectedNode?.meta.nodeType === "token-group"
+      ) {
         parentId = selectedNode.nodeId;
         // Add at the end of the group
         const children = treeState.getChildren(selectedNode.nodeId);

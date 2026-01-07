@@ -46,7 +46,10 @@
     hoveredItemId?: string;
     renderItem?: (item: TreeItem) => any;
     // drag and drop specific
-    canAcceptChildren?: (itemId: string) => boolean;
+    canAcceptChildren?: (
+      targetId: undefined | string,
+      items: string[],
+    ) => boolean;
     onMove?: (
       items: string[],
       parentId: undefined | string,
@@ -291,6 +294,9 @@
   };
 
   let dragState = $state<DragState>({ type: "idle" });
+  let dropTarget = $state<
+    undefined | { targetId?: string; position: number }
+  >();
 
   let autoExpandTimeout: number;
   const setupDragAndDrop: Attachment<HTMLElement> = (element) => {
@@ -334,10 +340,9 @@
             input,
             element,
             operations: {
-              combine:
-                sourceItems.includes(itemId) || !canAcceptChildren?.(itemId)
-                  ? "not-available"
-                  : "available",
+              combine: sourceItems.includes(itemId)
+                ? "not-available"
+                : "available",
               "reorder-before": "available",
               "reorder-after": "available",
             },
@@ -360,6 +365,42 @@
             targetId: itemId,
             instruction,
           };
+
+          const targetElement = treeElement?.querySelector(
+            `#${getItemElementId(itemId)}`,
+          );
+          if (instruction?.operation === "reorder-before") {
+            const targetId = getItemId(
+              targetElement?.parentElement?.closest("[role=treeitem]"),
+            );
+            const position = Number(
+              targetElement?.getAttribute("data-position"),
+            );
+            dropTarget = { targetId, position };
+          }
+          if (instruction?.operation === "reorder-after") {
+            if (expandedItems.has(itemId)) {
+              dropTarget = { targetId: itemId, position: 0 };
+            } else {
+              const targetId = getItemId(
+                targetElement?.parentElement?.closest("[role=treeitem]"),
+              );
+              const position = Number(
+                targetElement?.getAttribute("data-position"),
+              );
+              dropTarget = { targetId, position: position + 1 };
+            }
+          }
+          if (instruction?.operation === "combine") {
+            dropTarget = { targetId: itemId, position: 0 };
+          }
+          if (
+            canAcceptChildren &&
+            !canAcceptChildren(dropTarget?.targetId, sourceItems)
+          ) {
+            dropTarget = undefined;
+            dragState = { type: "dragging", items: sourceItems };
+          }
         },
         onDragLeave: ({ source }) => {
           const sourceItems = source.data.items as string[];
@@ -376,40 +417,10 @@
   const setupTreeMonitor: Attachment<HTMLElement> = () => {
     return monitorForElements({
       canMonitor: ({ source }) => source.data.type === "tree-item",
-      onDrop: ({ source, location }) => {
-        const target = location.current.dropTargets[0];
-        if (!target) {
-          return;
-        }
-
+      onDrop: ({ source }) => {
         const sourceItems = source.data.items as string[];
-        const targetId = target.data.itemId as string;
-        const targetElement = treeElement?.querySelector(
-          `#${getItemElementId(targetId)}`,
-        );
-        const instruction = extractInstruction(target.data);
-        if (instruction?.operation === "reorder-before") {
-          const targetParentId = getItemId(
-            targetElement?.parentElement?.closest("[role=treeitem]"),
-          );
-          const position = Number(targetElement?.getAttribute("data-position"));
-          onMove?.(sourceItems, targetParentId, position);
-        }
-        if (instruction?.operation === "reorder-after") {
-          if (expandedItems.has(targetId)) {
-            onMove?.(sourceItems, targetId, 0);
-          } else {
-            const targetParentId = getItemId(
-              targetElement?.parentElement?.closest("[role=treeitem]"),
-            );
-            const position = Number(
-              targetElement?.getAttribute("data-position"),
-            );
-            onMove?.(sourceItems, targetParentId, position + 1);
-          }
-        }
-        if (instruction?.operation === "combine") {
-          onMove?.(sourceItems, targetId, 0);
+        if (dropTarget) {
+          onMove?.(sourceItems, dropTarget.targetId, dropTarget.position);
         }
       },
     });
@@ -483,11 +494,6 @@
   onkeydown={handleKeyDown}
   {@attach setupTreeMonitor}
 >
-  <button
-    class="deselect"
-    aria-label="Deselect items"
-    onclick={() => selectedItems.clear()}
-  ></button>
   {#each data as root, position (root.id)}
     {@render item(root, 1, position)}
   {/each}
@@ -505,13 +511,6 @@
       outline: none;
       background-color: var(--bg-secondary);
     }
-  }
-
-  .deselect {
-    position: absolute;
-    inset: 0;
-    background-color: transparent;
-    border: 0;
   }
 
   [role="treeitem"] {

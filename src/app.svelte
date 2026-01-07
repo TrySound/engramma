@@ -39,6 +39,7 @@
     LineSquiggle,
     Paintbrush,
     Tags,
+    ListPlus,
   } from "@lucide/svelte";
   import TreeView, { type TreeItem } from "./tree-view.svelte";
   import Editor from "./editor.svelte";
@@ -64,16 +65,12 @@
     ]);
   });
 
-  const rootNodes = $derived.by(() => {
-    const rootNodes = treeState.getChildren(undefined);
-    // Get children of Base token-set if it exists
-    const baseSet = rootNodes.find(
-      (node) => node.meta.nodeType === "token-set",
-    );
-    return baseSet ? treeState.getChildren(baseSet.nodeId) : rootNodes;
-  });
+  const rootNodes = $derived(treeState.getChildren(undefined));
 
-  let selectedItems = new SvelteSet<string>();
+  // svelte-ignore state_referenced_locally
+  let selectedItems = new SvelteSet<string>(
+    rootNodes.length ? [rootNodes[0].nodeId] : [],
+  );
 
   const buildTreeItem = (node: TreeNode<TreeNodeMeta>): TreeItem => {
     const children = treeState.getChildren(node.nodeId);
@@ -86,7 +83,9 @@
   };
 
   const treeData = $derived(rootNodes.map(buildTreeItem));
-  const defaultExpandedItems = $derived([]);
+  const defaultExpandedItems = $derived(
+    rootNodes.length ? [rootNodes[0].nodeId] : [],
+  );
 
   const handleDelete = () => {
     if (selectedItems.size === 0) {
@@ -117,14 +116,38 @@
     }
   };
 
+  const handleAddSet = () => {
+    // Token-sets can only be at the top level
+    const rootChildren = treeState.getChildren(undefined);
+    const lastChildIndex = rootChildren.at(-1)?.index ?? zeroIndex;
+    const insertAfterIndex = generateKeyBetween(lastChildIndex, null);
+    const newSet: TreeNode<TreeNodeMeta> = {
+      nodeId: crypto.randomUUID(),
+      parentId: undefined,
+      index: insertAfterIndex,
+      meta: {
+        nodeType: "token-set",
+        name: "New Set",
+      },
+    };
+    treeState.transact((tx) => {
+      tx.set(newSet);
+    });
+    selectedItems.clear();
+    selectedItems.add(newSet.nodeId);
+  };
+
   const handleAddGroup = () => {
     const firstSelectedId = Array.from(selectedItems)[0];
     const firstSelectedNode = treeState.getNode(firstSelectedId);
+    if (!firstSelectedNode) {
+      return;
+    }
     // determine parent and index for new group
     let parentId: string | undefined;
     let insertAfterIndex: string;
     if (
-      firstSelectedNode === undefined ||
+      firstSelectedNode.meta.nodeType === "token-set" ||
       firstSelectedNode.meta.nodeType === "token-group"
     ) {
       parentId = firstSelectedId;
@@ -182,6 +205,15 @@
     newParentId: undefined | string,
     position: number,
   ) => {
+    // Validate that token-sets can only be at top level
+    for (const itemId of itemIds) {
+      const node = treeState.getNode(itemId);
+      if (node?.meta.nodeType === "token-set" && newParentId !== undefined) {
+        // Token-sets cannot be nested, reject this move
+        return;
+      }
+    }
+
     // get the children of the new parent to calculate the new index
     const newParentChildren = treeState.getChildren(newParentId);
     const prevIndex = newParentChildren[position - 1]?.index ?? zeroIndex;
@@ -296,6 +328,9 @@
               <Trash2 size={16} />
             </button>
           {/if}
+          <button class="a-button" aria-label="Add set" onclick={handleAddSet}>
+            <ListPlus size={16} />
+          </button>
           <button
             class="a-button"
             aria-label="Add group"
@@ -340,11 +375,49 @@
         {/if}
       {/snippet}
 
+      {#snippet treeItemEditorButton(nodeId: string)}
+        <button
+          class="a-small-button edit-button"
+          aria-label="Edit"
+          onclick={() => {
+            selectedItems.clear();
+            selectedItems.add(nodeId);
+            /* safari closes dialog whenever cursor is out of button */
+            document.getElementById("app-node-editor")?.showPopover();
+          }}
+        >
+          <Settings size={16} />
+        </button>
+      {/snippet}
+
       {#snippet renderTreeItem(item: TreeItem)}
         {@const node = treeState.getNode(item.id)}
-        <div class="token">
-          {#if node?.meta.nodeType === "token"}
-            {@const tokenValue = resolveTokenValue(node, treeState.nodes())}
+
+        {#if node?.meta.nodeType === "token-set"}
+          <div class="token">
+            <span class="token-set-name">{item.name}</span>
+            {@render treeItemEditorButton(item.id)}
+          </div>
+        {/if}
+
+        {#if node?.meta.nodeType === "token-group"}
+          {@const type = findTokenType(node, treeState.nodes())}
+          <div class="token">
+            <div class="token-icon">
+              {#if type}
+                {@render renderTypeIcon(type)}
+              {:else}
+                <Folder size={16} />
+              {/if}
+            </div>
+            <span class="token-name">{item.name}</span>
+            {@render treeItemEditorButton(item.id)}
+          </div>
+        {/if}
+
+        {#if node?.meta.nodeType === "token"}
+          {@const tokenValue = resolveTokenValue(node, treeState.nodes())}
+          <div class="token">
             {#if tokenValue.type === "color"}
               <div
                 class="token-preview"
@@ -355,31 +428,10 @@
                 {@render renderTypeIcon(tokenValue.type)}
               </div>
             {/if}
-          {/if}
-          {#if node?.meta.nodeType === "token-group"}
-            {@const type = findTokenType(node, treeState.nodes())}
-            <div class="token-icon">
-              {#if type}
-                {@render renderTypeIcon(type)}
-              {:else}
-                <Folder size={16} />
-              {/if}
-            </div>
-          {/if}
-          <span class="token-name">{item.name}</span>
-          <button
-            class="a-small-button edit-button"
-            aria-label="Edit"
-            onclick={() => {
-              selectedItems.clear();
-              selectedItems.add(item.id);
-              /* safari closes dialog whenever cursor is out of button */
-              document.getElementById("app-node-editor")?.showPopover();
-            }}
-          >
-            <Settings size={16} />
-          </button>
-        </div>
+            <span class="token-name">{item.name}</span>
+            {@render treeItemEditorButton(item.id)}
+          </div>
+        {/if}
       {/snippet}
 
       <div class="tokens-container">
@@ -390,8 +442,31 @@
           {selectedItems}
           {defaultExpandedItems}
           renderItem={renderTreeItem}
-          canAcceptChildren={(nodeId) =>
-            treeState.getNode(nodeId)?.meta.nodeType === "token-group"}
+          canAcceptChildren={(targetId, items) => {
+            // only set can be dropped into root
+            if (!targetId) {
+              return items.every(
+                (itemId) =>
+                  treeState.getNode(itemId)?.meta.nodeType === "token-set",
+              );
+            }
+            const target = targetId ? treeState.getNode(targetId) : undefined;
+            // groups and sets accepts only other groups and tokens
+            if (
+              target?.meta.nodeType === "token-set" ||
+              target?.meta.nodeType === "token-group"
+            ) {
+              return items.every((itemId) => {
+                const node = treeState.getNode(itemId);
+                return (
+                  node?.meta.nodeType === "token-group" ||
+                  node?.meta.nodeType === "token"
+                );
+              });
+            }
+            // tokens do not accept anything
+            return false;
+          }}
           onMove={handleMove}
         />
       </div>
@@ -491,6 +566,12 @@
   .token-name {
     font-size: 14px;
     font-weight: 400;
+    color: var(--text-primary);
+  }
+
+  .token-set-name {
+    font-size: 14px;
+    font-weight: 600;
     color: var(--text-primary);
   }
 
