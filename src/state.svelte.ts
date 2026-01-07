@@ -9,8 +9,8 @@ import {
   RawValueSchema,
   isNodeRef,
 } from "./schema";
-import { serializeDesignTokens } from "./tokens";
 import { setDataInUrl } from "./url-data";
+import { serializeTokenResolver } from "./resolver";
 
 export type SetMeta = {
   nodeType: "token-set";
@@ -350,23 +350,7 @@ export class TreeState<Meta> {
 
   #updateUrl(): void {
     const allNodes = this.#store.nodes() as Map<string, TreeNode<TreeNodeMeta>>;
-    const newNodes = new Map<string, TreeNode<TokenMeta | GroupMeta>>();
-    // remove set node from data and serialize as DTCG format module
-    // @todo use resolve serializer when implemented
-    const setIds = new Set<undefined | string>();
-    for (const node of allNodes.values()) {
-      if (node.meta.nodeType === "token-set") {
-        setIds.add(node.nodeId);
-      } else {
-        newNodes.set(node.nodeId, node as TreeNode<TokenMeta | GroupMeta>);
-      }
-    }
-    for (const node of newNodes.values()) {
-      if (setIds.has(node.parentId)) {
-        newNodes.set(node.nodeId, { ...node, parentId: undefined });
-      }
-    }
-    const serialized = serializeDesignTokens(newNodes);
+    const serialized = serializeTokenResolver(allNodes);
     setDataInUrl(serialized).catch((error) => {
       console.error("Failed to sync design tokens to URL:", error);
     });

@@ -25,8 +25,6 @@
     // Try JSON
     try {
       const parsed = JSON.parse(content);
-
-      // Check if it's resolver format
       if (isResolverFormat(parsed)) {
         const result = parseTokenResolver(parsed);
         if (result.nodes.length > 0 || result.errors.length > 0) {
