@@ -57,8 +57,8 @@ const legacyColorValue = z
     return colorValue;
   });
 
-// "10px", "0.5rem"
-const dimensionRegex = /^(\d+(?:\.\d+)?)(px|rem)$/;
+// "10px", "0.5rem", "-8px", "-0.5rem"
+const dimensionRegex = /^(-?\d+(?:\.\d+)?)(px|rem)$/;
 const legacyDimensionValue = z
   .string()
   .regex(dimensionRegex)
@@ -73,8 +73,8 @@ const legacyDimensionValue = z
     };
   });
 
-// "200ms", "1.5s"
-const durationRegex = /^(\d+(?:\.\d+)?)(ms|s)$/;
+// "200ms", "1.5s", "-100ms", "-0.5s"
+const durationRegex = /^(-?\d+(?:\.\d+)?)(ms|s)$/;
 const legacyDurationValue = z
   .string()
   .regex(durationRegex)
@@ -89,8 +89,8 @@ const legacyDurationValue = z
     };
   });
 
-// "200", "1.5"
-const numberRegex = /^(\d+(?:\.\d+)?)$/;
+// "200", "1.5", "-42", "-3.14"
+const numberRegex = /^(-?\d+(?:\.\d+)?)$/;
 const legacyNumberValue = z
   .string()
   .regex(numberRegex)
@@ -110,13 +110,19 @@ const legacyStrokeStyleValue = z.union([
   }),
 ]);
 
-const legacyShadowValue = z.object({
+const legacyShadowObject = z.object({
+  inset: z.boolean().optional(),
   color: z.union([legacyColorValue, referenceSchema]),
   offsetX: z.union([legacyDimensionValue, referenceSchema]),
   offsetY: z.union([legacyDimensionValue, referenceSchema]),
   blur: z.union([legacyDimensionValue, referenceSchema]),
   spread: z.union([legacyDimensionValue, referenceSchema]),
 });
+
+const legacyShadowValue = z.union([
+  z.array(legacyShadowObject),
+  legacyShadowObject,
+]);
 
 const legacyBorderValue = z.object({
   color: z.union([legacyColorValue, referenceSchema]),

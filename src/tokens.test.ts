@@ -1989,6 +1989,305 @@ describe("parseDesignTokens - Legacy Format Migration", () => {
     }
   });
 
+  test("parses legacy negative dimension value", () => {
+    const result = parseDesignTokens({
+      spacing: {
+        $type: "dimension",
+        negative: { $value: "-8px" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    expect(result.nodes).toHaveLength(2);
+    const token = result.nodes.find((n) => n.meta.nodeType === "token");
+    if (token?.meta.nodeType === "token") {
+      expect((token.meta.value as any).value).toBe(-8);
+      expect((token.meta.value as any).unit).toBe("px");
+    }
+  });
+
+  test("parses legacy negative dimension with decimal", () => {
+    const result = parseDesignTokens({
+      spacing: {
+        $type: "dimension",
+        negative: { $value: "-0.5rem" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find((n) => n.meta.nodeType === "token");
+    if (token?.meta.nodeType === "token") {
+      expect((token.meta.value as any).value).toBe(-0.5);
+      expect((token.meta.value as any).unit).toBe("rem");
+    }
+  });
+
+  test("parses legacy negative zero dimension", () => {
+    const result = parseDesignTokens({
+      spacing: {
+        $type: "dimension",
+        zero: { $value: "-0px" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find((n) => n.meta.nodeType === "token");
+    if (token?.meta.nodeType === "token") {
+      expect((token.meta.value as any).value).toBe(-0);
+    }
+  });
+
+  test("parses legacy negative duration value", () => {
+    const result = parseDesignTokens({
+      transitions: {
+        $type: "duration",
+        negative: { $value: "-100ms" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find((n) => n.meta.nodeType === "token");
+    if (token?.meta.nodeType === "token") {
+      expect((token.meta.value as any).value).toBe(-100);
+      expect((token.meta.value as any).unit).toBe("ms");
+    }
+  });
+
+  test("parses legacy negative duration with decimal", () => {
+    const result = parseDesignTokens({
+      transitions: {
+        $type: "duration",
+        negative: { $value: "-0.5s" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find((n) => n.meta.nodeType === "token");
+    if (token?.meta.nodeType === "token") {
+      expect((token.meta.value as any).value).toBe(-0.5);
+      expect((token.meta.value as any).unit).toBe("s");
+    }
+  });
+
+  test("parses legacy negative zero duration", () => {
+    const result = parseDesignTokens({
+      transitions: {
+        $type: "duration",
+        zero: { $value: "-0ms" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find((n) => n.meta.nodeType === "token");
+    if (token?.meta.nodeType === "token") {
+      expect((token.meta.value as any).value).toBe(-0);
+    }
+  });
+
+  test("parses legacy negative number via typography lineHeight", () => {
+    const result = parseDesignTokens({
+      typography: {
+        $type: "typography",
+        negative: {
+          $value: {
+            fontFamily: "Arial",
+            fontSize: "16px",
+            fontWeight: 400,
+            letterSpacing: "0px",
+            lineHeight: "-1.5",
+          },
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "negative",
+    );
+    if (token?.meta.nodeType === "token") {
+      const typographyValue = token.meta.value as any;
+      expect(typographyValue.lineHeight).toBe(-1.5);
+    }
+  });
+
+  test("parses legacy negative decimal number via typography lineHeight", () => {
+    const result = parseDesignTokens({
+      typography: {
+        $type: "typography",
+        tight: {
+          $value: {
+            fontFamily: "Arial",
+            fontSize: "16px",
+            fontWeight: 400,
+            letterSpacing: "0px",
+            lineHeight: "-0.5",
+          },
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "tight",
+    );
+    if (token?.meta.nodeType === "token") {
+      const typographyValue = token.meta.value as any;
+      expect(typographyValue.lineHeight).toBe(-0.5);
+    }
+  });
+
+  test("parses legacy negative zero number via typography lineHeight", () => {
+    const result = parseDesignTokens({
+      typography: {
+        $type: "typography",
+        zero: {
+          $value: {
+            fontFamily: "Arial",
+            fontSize: "16px",
+            fontWeight: 400,
+            letterSpacing: "0px",
+            lineHeight: "-0",
+          },
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "zero",
+    );
+    if (token?.meta.nodeType === "token") {
+      const typographyValue = token.meta.value as any;
+      expect(typographyValue.lineHeight).toBe(-0);
+    }
+  });
+
+  test("parses legacy shadow with negative offsets", () => {
+    const result = parseDesignTokens({
+      shadows: {
+        $type: "shadow",
+        negative: {
+          $value: {
+            color: "#000000",
+            offsetX: "-2px",
+            offsetY: "-4px",
+            blur: "8px",
+            spread: "-1px",
+            inset: false,
+          },
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "negative",
+    );
+    if (token?.meta.nodeType === "token") {
+      const shadowValue = token.meta.value as any;
+      expect(Array.isArray(shadowValue)).toBe(true);
+      expect(shadowValue[0].offsetX.value).toBe(-2);
+      expect(shadowValue[0].offsetY.value).toBe(-4);
+      expect(shadowValue[0].spread.value).toBe(-1);
+      expect(shadowValue[0].blur.value).toBe(8);
+    }
+  });
+
+  test("parses legacy typography with negative letterSpacing", () => {
+    const result = parseDesignTokens({
+      typography: {
+        $type: "typography",
+        tight: {
+          $value: {
+            fontFamily: "Arial",
+            fontSize: "16px",
+            fontWeight: 400,
+            letterSpacing: "-0.05px",
+            lineHeight: "1.5",
+          },
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "tight",
+    );
+    if (token?.meta.nodeType === "token") {
+      const typographyValue = token.meta.value as any;
+      expect(typographyValue.letterSpacing.value).toBe(-0.05);
+    }
+  });
+
+  test("parses legacy border with negative width", () => {
+    const result = parseDesignTokens({
+      borders: {
+        $type: "border",
+        negative: {
+          $value: {
+            color: "#000000",
+            width: "-2px",
+            style: "solid",
+          },
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "negative",
+    );
+    if (token?.meta.nodeType === "token") {
+      const borderValue = token.meta.value as any;
+      expect(borderValue.width.value).toBe(-2);
+    }
+  });
+
+  test("parses legacy gradient with negative stop positions", () => {
+    const result = parseDesignTokens({
+      gradients: {
+        $type: "gradient",
+        negative: {
+          $value: [
+            { color: "#ff0000", position: -0.5 },
+            { color: "#00ff00", position: 0.5 },
+          ],
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const token = result.nodes.find(
+      (n) => n.meta.nodeType === "token" && n.meta.name === "negative",
+    );
+    if (token?.meta.nodeType === "token") {
+      const gradientValue = token.meta.value as any;
+      expect(Array.isArray(gradientValue)).toBe(true);
+      expect(gradientValue[0].position).toBe(-0.5);
+    }
+  });
+
+  test("parses multiple legacy negative dimension values", () => {
+    const result = parseDesignTokens({
+      spacing: {
+        $type: "dimension",
+        small: { $value: "-4px" },
+        medium: { $value: "-8px" },
+        large: { $value: "-16px" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const tokens = result.nodes.filter((n) => n.meta.nodeType === "token");
+    expect(tokens).toHaveLength(3);
+    const values = tokens
+      .map((t) => (t.meta as any).value.value)
+      .sort((a: number, b: number) => a - b);
+    expect(values).toEqual([-16, -8, -4]);
+  });
+
+  test("parses legacy dimensions with mixed positive and negative values", () => {
+    const result = parseDesignTokens({
+      spacing: {
+        $type: "dimension",
+        positive: { $value: "8px" },
+        negative: { $value: "-8px" },
+        zero: { $value: "0px" },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const tokens = result.nodes.filter((n) => n.meta.nodeType === "token");
+    expect(tokens).toHaveLength(3);
+    const values = tokens.map((t) => (t.meta as any).value.value).sort();
+    expect(values).toEqual([-8, 0, 8]);
+  });
+
   test("handles shadow with inset flag", () => {
     const result = parseDesignTokens({
       inset: {
