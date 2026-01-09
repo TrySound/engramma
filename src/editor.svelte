@@ -1109,9 +1109,7 @@
     right: auto;
     max-height: calc(100dvh - var(--panel-header-height) - 16px - 16px);
     width: 360px;
-    /* explicit size of left panel as a fallback browsers without anchor positioning support */
     left: max(320px, 30%);
-    left: anchor(right --app-left-panel);
     display: grid;
     /* collapse heading and content in safari */
     grid-template-rows: max-content max-content;
