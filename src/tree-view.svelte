@@ -522,6 +522,7 @@
     --tree-view-bg: transparent;
     --tree-view-bg-hover: var(--bg-hover);
     --tree-view-node-opacity: 1;
+    --tree-view-item-visibility: hidden;
 
     &[aria-expanded="true"] {
       --tree-view-toggle-visibility: visible;
@@ -536,12 +537,13 @@
     [role="tree"]:not([data-dragging="true"]) &[data-hovered="true"] {
       --tree-view-bg: var(--bg-hover);
       --tree-view-bg-hover: var(--bg-hover);
-      --tree-view-item-hover-visibility: visible;
+      --tree-view-item-visibility: visible;
     }
 
     [role="tree"]:not([data-dragging="true"]) &[aria-selected="true"] {
       --tree-view-bg: var(--accent);
       --tree-view-bg-hover: var(--accent-hover);
+      --tree-view-item-visibility: visible;
     }
 
     &[data-dragging="true"] {
@@ -565,11 +567,10 @@
     padding-left: calc((var(--tree-view-level) - 1) * 12px);
     background-color: var(--tree-view-bg);
     color: var(--text-primary);
-    --tree-view-item-hover-visibility: hidden;
 
     &:hover {
       background-color: var(--tree-view-bg-hover);
-      --tree-view-item-hover-visibility: visible;
+      --tree-view-item-visibility: visible;
     }
   }
 

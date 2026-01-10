@@ -496,7 +496,7 @@
 
   .edit-button {
     pointer-events: auto;
-    visibility: var(--tree-view-item-hover-visibility);
+    visibility: var(--tree-view-item-visibility);
   }
 
   .styleguide-panel {
