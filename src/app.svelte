@@ -510,7 +510,7 @@
 
   .horizontal-container {
     display: grid;
-    grid-template-columns: max(320px, 30%) 1fr;
+    grid-template-columns: clamp(320px, 30%, 360px) 1fr;
     grid-template-rows: 100%;
     overflow-x: auto;
     overflow-y: hidden;
