@@ -27,18 +27,6 @@ const expandHexTo6Digits = (hex: string) => {
   return hex;
 };
 
-/**
- * Extracts raw numeric value from colorjs.io coordinate or alpha value
- * Handles special Number objects with metadata
- */
-const getCoord = (value: number): number | "none" => {
-  // Check for "none" property
-  if ((value as any)?.none === true) {
-    return "none";
-  }
-  return value.valueOf();
-};
-
 // Mapping from design token color spaces to colorjs.io space ID
 const spaceIdByColorSpace: Record<ColorValue["colorSpace"], string> = {
   srgb: "srgb",
@@ -71,10 +59,9 @@ const colorSpaceBySpaceId = Object.fromEntries(
 export const parseColor = (input: string): ColorValue => {
   try {
     const color = colorjs.parse(input);
-    const components = color.coords.map(getCoord);
+    const components = color.coords.map((value) => value ?? "none");
     const hasNoneComponent = components.some((c) => c === "none");
-    const alphaCoord = getCoord(color.alpha ?? 1);
-    const alpha = alphaCoord === "none" ? 1 : alphaCoord;
+    const alpha = color.alpha ?? 1;
     const result: ColorValue = {
       colorSpace: colorSpaceBySpaceId[color.spaceId],
       components,

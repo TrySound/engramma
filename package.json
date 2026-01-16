@@ -37,7 +37,7 @@
     "@tsconfig/svelte": "^5.0.6",
     "@types/prismjs": "^1.26.5",
     "change-case": "^5.4.4",
-    "colorjs.io": "^0.5.2",
+    "colorjs.io": "^0.6.1",
     "dialog-closedby-polyfill": "^1.1.0",
     "fractional-indexing": "^3.2.0",
     "hdr-color-input": "^0.2.5",
