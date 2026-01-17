@@ -1,4 +1,4 @@
-import { formatError } from "zod";
+import * as z from "zod/mini";
 import { createSubscriber } from "svelte/reactivity";
 import { TreeStore, type Transaction, type TreeNode } from "./store";
 import {
@@ -123,7 +123,7 @@ export const resolveRawValue = (
     const resolvedValue = resolveRawValue(tokenNode, nodes, newStack);
     const parsed = RawValueSchema.safeParse(resolvedValue);
     if (!parsed.success) {
-      throw Error(formatError(parsed.error)._errors.join("\n"));
+      throw Error(z.formatError(parsed.error)._errors.join("\n"));
     }
     return resolvedValue;
   }

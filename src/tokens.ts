@@ -1,4 +1,4 @@
-import { prettifyError } from "zod";
+import * as z from "zod/mini";
 import { generateKeyBetween } from "fractional-indexing";
 import { compareTreeNodes, type TreeNode } from "./store";
 import type { GroupMeta, TokenMeta } from "./state.svelte";
@@ -156,7 +156,7 @@ export const extractIntermediaryNodes = (input: unknown) => {
     const path = parentPath ? [...parentPath, name] : [name];
     const nameValidation = nameSchema.safeParse(name);
     if (!nameValidation.success && name !== "$root") {
-      const message = prettifyError(nameValidation.error);
+      const message = z.prettifyError(nameValidation.error);
       errors.push({ path: path.join("."), message });
       return;
     }
@@ -165,7 +165,7 @@ export const extractIntermediaryNodes = (input: unknown) => {
       ? backwardCompatibleTokenSchema.safeParse(data)
       : groupSchema.safeParse(data);
     if (!payload.success) {
-      const message = prettifyError(payload.error);
+      const message = z.prettifyError(payload.error);
       errors.push({ path: path.join("."), message });
       return;
     }

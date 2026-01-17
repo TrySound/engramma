@@ -1,4 +1,4 @@
-import { prettifyError } from "zod";
+import * as z from "zod/mini";
 import { generateKeyBetween } from "fractional-indexing";
 import {
   resolverDocumentSchema,
@@ -88,7 +88,7 @@ export const parseTokenResolver = (input: unknown): ParseResult => {
   const validation = resolverDocumentSchema.safeParse(input);
 
   if (!validation.success) {
-    const errorMessage = prettifyError(validation.error);
+    const errorMessage = z.prettifyError(validation.error);
     return {
       nodes: [],
       errors: [{ path: "resolver", message: errorMessage }],

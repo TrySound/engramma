@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import {
   colorValue,
   cubicBezierValue,
@@ -94,7 +94,7 @@ const shadowItemSchema = z.object({
   offsetY: dimensionValue,
   blur: dimensionValue,
   spread: dimensionValue,
-  inset: z.boolean().optional(),
+  inset: z.optional(z.boolean()),
 });
 
 const shadowSchema = z.object({
@@ -108,7 +108,7 @@ const rawShadowItemSchema = z.object({
   offsetY: z.union([dimensionValue, nodeRefSchema]),
   blur: z.union([dimensionValue, nodeRefSchema]),
   spread: z.union([dimensionValue, nodeRefSchema]),
-  inset: z.boolean().optional(),
+  inset: z.optional(z.boolean()),
 });
 
 const rawShadowSchema = z.object({

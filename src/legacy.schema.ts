@@ -2,7 +2,7 @@
 // Supports dual-format parsing: legacy 2022 format and 2025 standard format
 // Output is always normalized to 2025 standard format
 
-import { z } from "zod";
+import * as z from "zod/mini";
 import { parseColor } from "./color";
 import {
   cubicBezierValue,
@@ -32,10 +32,9 @@ const expandShorthandHex = (hex: string): string => {
 // #rrggbb or #rrggbbaa or #rgb or #rgba
 const legacyColorRegex =
   /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/i;
-const legacyColorValue = z
-  .string()
-  .regex(legacyColorRegex)
-  .transform((value): ColorValue => {
+const legacyColorValue = z.pipe(
+  z.string().check(z.regex(legacyColorRegex)),
+  z.transform((value): ColorValue => {
     const expanded = expandShorthandHex(value.toLowerCase());
     // Extract alpha from last 2 chars if present
     let alphaHex = "ff";
@@ -55,14 +54,14 @@ const legacyColorValue = z
       delete colorValue.hex;
     }
     return colorValue;
-  });
+  }),
+);
 
 // "10px", "0.5rem", "-8px", "-0.5rem"
 const dimensionRegex = /^(-?\d+(?:\.\d+)?)(px|rem)$/;
-const legacyDimensionValue = z
-  .string()
-  .regex(dimensionRegex)
-  .transform((value): DimensionValue => {
+const legacyDimensionValue = z.pipe(
+  z.string().check(z.regex(dimensionRegex)),
+  z.transform((value): DimensionValue => {
     const match = value.match(dimensionRegex);
     if (!match) {
       throw new Error(`Invalid dimension: ${value}`);
@@ -71,14 +70,14 @@ const legacyDimensionValue = z
       value: Number.parseFloat(match[1]),
       unit: match[2] as "px" | "rem",
     };
-  });
+  }),
+);
 
 // "200ms", "1.5s", "-100ms", "-0.5s"
 const durationRegex = /^(-?\d+(?:\.\d+)?)(ms|s)$/;
-const legacyDurationValue = z
-  .string()
-  .regex(durationRegex)
-  .transform((value): DurationValue => {
+const legacyDurationValue = z.pipe(
+  z.string().check(z.regex(durationRegex)),
+  z.transform((value): DurationValue => {
     const match = value.match(durationRegex);
     if (!match) {
       throw new Error(`Invalid duration: ${value}`);
@@ -87,31 +86,32 @@ const legacyDurationValue = z
       value: Number.parseFloat(match[1]),
       unit: match[2] as "ms" | "s",
     };
-  });
+  }),
+);
 
 // "200", "1.5", "-42", "-3.14"
 const numberRegex = /^(-?\d+(?:\.\d+)?)$/;
-const legacyNumberValue = z
-  .string()
-  .regex(numberRegex)
-  .transform((value): number => {
+const legacyNumberValue = z.pipe(
+  z.string().check(z.regex(numberRegex)),
+  z.transform((value): number => {
     const match = value.match(numberRegex);
     if (!match) {
       throw new Error(`Invalid number: ${value}`);
     }
     return Number.parseFloat(match[1]);
-  });
+  }),
+);
 
 const legacyStrokeStyleValue = z.union([
   strokeStyleString,
   z.object({
-    dashArray: z.array(legacyDimensionValue).min(1),
+    dashArray: z.array(legacyDimensionValue).check(z.minLength(1)),
     lineCap: z.enum(["round", "butt", "square"]),
   }),
 ]);
 
 const legacyShadowObject = z.object({
-  inset: z.boolean().optional(),
+  inset: z.optional(z.boolean()),
   color: z.union([legacyColorValue, referenceSchema]),
   offsetX: z.union([legacyDimensionValue, referenceSchema]),
   offsetY: z.union([legacyDimensionValue, referenceSchema]),
@@ -140,7 +140,7 @@ const legacyGradientStop = z.object({
   color: z.union([legacyColorValue, referenceSchema]),
   position: z.number(),
 });
-const legacyGradientValue = z.array(legacyGradientStop).min(1);
+const legacyGradientValue = z.array(legacyGradientStop).check(z.minLength(1));
 
 const legacyTypographyValue = z.object({
   fontFamily: z.union([fontFamilyValue, referenceSchema]),
@@ -150,7 +150,7 @@ const legacyTypographyValue = z.object({
   lineHeight: z.union([legacyNumberValue, referenceSchema]),
 });
 
-export const legacyTokenSchema = tokenSchema.extend({
+export const legacyTokenSchema = z.extend(tokenSchema, {
   $value: z.union([
     legacyColorValue,
     legacyDimensionValue,

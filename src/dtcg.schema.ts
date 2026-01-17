@@ -1,42 +1,41 @@
 // Zod schema based on Design Tokens Community Group specification
 // does not support JSON Pointer references
 
-import { z } from "zod";
+import * as z from "zod/mini";
 
 // token and group names MUST NOT:
 // - start with '$' (reserved prefix per DTCG spec)
 // - contain '{' (used in references syntax)
 // - contain '}' (used in references syntax)
 // - contain '.' (used in path separators within references)
-export const nameSchema = z
-  .string()
-  .refine(
+export const nameSchema = z.string().check(
+  z.refine(
     (name) => !name.startsWith("$"),
     "Token and group names must not start with '$'",
-  )
-  .refine(
+  ),
+  z.refine(
     (name) => !name.includes("{"),
     "Token and group names must not contain '{'",
-  )
-  .refine(
+  ),
+  z.refine(
     (name) => !name.includes("}"),
     "Token and group names must not contain '}'",
-  )
-  .refine(
+  ),
+  z.refine(
     (name) => !name.includes("."),
     "Token and group names must not contain '.'",
-  );
+  ),
+);
 
 // references use dot-separated paths with curly braces like {colors.primary}
 // each segment must be a valid name per nameSchema
 // special case: $root token is allowed within references as it uses the $ prefix
-export const referenceSchema = z
-  .string()
-  .refine(
+export const referenceSchema = z.string().check(
+  z.refine(
     (value) => value.startsWith("{") && value.endsWith("}"),
     "Reference must be enclosed in curly braces",
-  )
-  .refine((value) => {
+  ),
+  z.refine((value) => {
     const content = value.slice(1, -1);
     const segments = content.split(".");
     return (
@@ -47,7 +46,8 @@ export const referenceSchema = z
         return nameSchema.safeParse(segment).success;
       })
     );
-  }, "Each segment in reference must be a valid name");
+  }, "Each segment in reference must be a valid name"),
+);
 
 // Token types
 const tokenType = z.enum([
@@ -90,8 +90,8 @@ const colorSpace = z.enum([
 export const colorValue = z.object({
   colorSpace: colorSpace,
   components: z.array(colorComponent),
-  alpha: z.number().optional(),
-  hex: z.string().optional(),
+  alpha: z.optional(z.number()),
+  hex: z.optional(z.string()),
 });
 
 export const dimensionValue = z.object({
@@ -101,11 +101,11 @@ export const dimensionValue = z.object({
 
 export const fontFamilyValue = z.union([
   z.string(),
-  z.array(z.string()).min(1),
+  z.array(z.string()).check(z.minLength(1)),
 ]);
 
 export const fontWeightValue = z.union([
-  z.number().min(1).max(1000),
+  z.number().check(z.minimum(1), z.maximum(1000)),
   z.enum([
     "thin",
     "hairline",
@@ -156,7 +156,7 @@ export const strokeStyleString = z.enum([
 export const strokeStyleValue = z.union([
   strokeStyleString,
   z.object({
-    dashArray: z.array(dimensionValue).min(1),
+    dashArray: z.array(dimensionValue).check(z.minLength(1)),
     lineCap: z.enum(["round", "butt", "square"]),
   }),
 ]);
@@ -181,12 +181,12 @@ const shadowObject = z.object({
   offsetY: z.union([dimensionValue, referenceSchema]),
   blur: z.union([dimensionValue, referenceSchema]),
   spread: z.union([dimensionValue, referenceSchema]),
-  inset: z.boolean().optional(),
+  inset: z.optional(z.boolean()),
 });
 
 export const shadowValue = z.union([
   shadowObject,
-  z.array(shadowObject).min(1),
+  z.array(shadowObject).check(z.minLength(1)),
 ]);
 
 const gradientStop = z.object({
@@ -194,7 +194,7 @@ const gradientStop = z.object({
   position: z.number(),
 });
 
-export const gradientValue = z.array(gradientStop).min(1);
+export const gradientValue = z.array(gradientStop).check(z.minLength(1));
 
 export const typographyValue = z.object({
   fontFamily: z.union([fontFamilyValue, referenceSchema]),
@@ -221,19 +221,19 @@ export const tokenSchema = z.object({
     typographyValue,
     referenceSchema,
   ]),
-  $type: tokenType.optional(),
-  $description: z.string().optional(),
-  $extensions: z.record(z.string(), z.unknown()).optional(),
-  $deprecated: z.union([z.boolean(), z.string()]).optional(),
+  $type: z.optional(tokenType),
+  $description: z.optional(z.string()),
+  $extensions: z.optional(z.record(z.string(), z.unknown())),
+  $deprecated: z.optional(z.union([z.boolean(), z.string()])),
 });
 
 export const groupSchema = z.object({
-  $type: tokenType.optional(),
-  $description: z.string().optional(),
-  $extensions: z.record(z.string(), z.unknown()).optional(),
-  $extends: referenceSchema.optional(),
-  $deprecated: z.union([z.boolean(), z.string()]).optional(),
-  $root: tokenSchema.optional(),
+  $type: z.optional(tokenType),
+  $description: z.optional(z.string()),
+  $extensions: z.optional(z.record(z.string(), z.unknown())),
+  $extends: z.optional(referenceSchema),
+  $deprecated: z.optional(z.union([z.boolean(), z.string()])),
+  $root: z.optional(tokenSchema),
 });
 
 export type Token = z.infer<typeof tokenSchema>;
@@ -262,7 +262,7 @@ export const resolverSourceSchema = z.record(
   z.string(),
   // avoid checking to not cut of nested groups and tokens
   // but enforce as a type
-  z.unknown() as z.ZodType<Token | Group>,
+  z.unknown() as z.ZodMiniType<Token | Group>,
 );
 
 export type ResolverSource = z.infer<typeof resolverSourceSchema>;
@@ -272,8 +272,8 @@ export const resolverSetSchema = z.object({
   type: z.literal("set"),
   name: nameSchema, // required, unique identifier within resolutionOrder
   sources: z.array(resolverSourceSchema), // non-optional, can be empty
-  description: z.string().optional(),
-  $extensions: z.record(z.string(), z.unknown()).optional(),
+  description: z.optional(z.string()),
+  $extensions: z.optional(z.record(z.string(), z.unknown())),
 });
 
 export type ResolverSet = z.infer<typeof resolverSetSchema>;
@@ -289,9 +289,9 @@ export const resolverModifierSchema = z.object({
   type: z.literal("modifier"),
   name: nameSchema, // required, unique identifier within resolutionOrder
   contexts: resolverModifierContextsSchema, // non-optional
-  description: z.string().optional(),
-  default: z.string().optional(),
-  $extensions: z.record(z.string(), z.unknown()).optional(),
+  description: z.optional(z.string()),
+  default: z.optional(z.string()),
+  $extensions: z.optional(z.record(z.string(), z.unknown())),
 });
 
 export type ResolverModifier = z.infer<typeof resolverModifierSchema>;
@@ -306,16 +306,16 @@ export type ResolutionOrderItem = z.infer<typeof resolutionOrderItemSchema>;
 
 // Unsupported root-level sets and modifiers
 // These reject any object with properties - only allow undefined or empty object
-const unsupportedSetsSchema = z.object({}).strict().optional();
-const unsupportedModifiersSchema = z.object({}).strict().optional();
+const unsupportedSetsSchema = z.optional(z.strictObject({}));
+const unsupportedModifiersSchema = z.optional(z.strictObject({}));
 
 // Resolver document following Design Tokens Resolver Module 2025.10
 export const resolverDocumentSchema = z.object({
   version: z.literal("2025.10"),
-  name: z.string().optional(),
-  description: z.string().optional(),
-  sets: unsupportedSetsSchema.optional(),
-  modifiers: unsupportedModifiersSchema.optional(),
+  name: z.optional(z.string()),
+  description: z.optional(z.string()),
+  sets: z.optional(unsupportedSetsSchema),
+  modifiers: z.optional(unsupportedModifiersSchema),
   resolutionOrder: z.array(resolutionOrderItemSchema),
 });
 

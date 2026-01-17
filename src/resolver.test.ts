@@ -70,7 +70,7 @@ describe("parseTokenResolver", () => {
       resolutionOrder: [],
     });
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain("2025.10");
+    expect(result.errors[0].message).toContain("version");
   });
 
   test("rejects root-level sets object with property keys", () => {
