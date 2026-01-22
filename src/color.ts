@@ -97,7 +97,9 @@ export const serializeColor = (colorValue: ColorValue): string => {
     return colorjs.serialize(
       {
         spaceId,
-        coords: colorValue.components as any,
+        coords: colorValue.components.map((item) =>
+          item === "none" ? null : item,
+        ) as colorjs.Coords,
         alpha: colorValue.alpha,
       },
       { precision: 2 },
