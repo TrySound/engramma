@@ -1108,23 +1108,35 @@
 
 <style>
   .editor-popover:popover-open {
-    top: calc(var(--panel-header-height) + 16px);
-    bottom: auto;
-    right: auto;
+    inset: 0;
+    margin: auto;
     max-height: calc(100cqh - var(--panel-header-height) - 16px - 16px);
     width: 360px;
-    left: min(360px, max(320px, 30%));
     display: grid;
     /* collapse heading and content in safari */
     grid-template-rows: max-content max-content;
     overflow: auto;
 
     @container (width <= 720px) {
-      margin: auto;
       inset: 8px;
       width: auto;
-      height: auto;
       max-height: none;
+    }
+
+    @supports (position-anchor: --app) {
+      position-anchor: --tokens-panel;
+      top: calc(anchor(top) + 16px);
+      left: anchor(right);
+      bottom: auto;
+      right: auto;
+
+      @container (width <= 720px) {
+        position-anchor: --app;
+        top: calc(anchor(top) + 8px);
+        left: calc(anchor(left) + 8px);
+        width: calc(anchor-size(width) - 16px);
+        height: calc(anchor-size(height) - 16px);
+      }
     }
   }
 

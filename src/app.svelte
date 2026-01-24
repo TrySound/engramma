@@ -56,6 +56,7 @@
   import { serializeColor } from "./color";
   import type { Value } from "./schema";
 
+  let appElement: undefined | HTMLDivElement;
   const zeroIndex = generateKeyBetween(null, null);
 
   onMount(() => {
@@ -193,7 +194,7 @@
     }
     const closestTree = event.target.closest("[role=tree]");
     if (event.key === "Enter" && closestTree) {
-      document.getElementById("app-node-editor")?.showPopover();
+      appElement?.querySelector<HTMLElement>("#app-node-editor")?.showPopover();
     }
     if (event.key === "Backspace" && closestTree) {
       handleDelete();
@@ -244,9 +245,9 @@
     if ("anchorName" in document.documentElement.style) {
       return;
     }
-    const button = (event.target as HTMLElement).closest(
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
       "button[commandfor]",
-    ) as null | HTMLButtonElement;
+    );
     if (button?.commandForElement) {
       const target = button.commandForElement;
       // ignore dialogs
@@ -277,12 +278,12 @@
     if ("anchorName" in document.documentElement.style) {
       return;
     }
-    const button = (event.target as HTMLElement).closest(
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
       "button[interestfor]",
-    ) as null | HTMLButtonElement;
+    );
     const interestFor = button?.getAttribute("interestfor");
     const target = interestFor
-      ? document.getElementById(interestFor)
+      ? appElement?.querySelector<HTMLElement>(`#${interestFor}`)
       : undefined;
     if (button && target) {
       // closed state is not always triggers beforetoggle
@@ -305,13 +306,14 @@
   };
 </script>
 
-<svelte:document
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="app"
+  bind:this={appElement}
   onclickcapture={handleDocumentClick}
   onmouseovercapture={handleDocumentMouseOver}
   onkeydown={handleKeyDown}
-/>
-
-<div class="app">
+>
   <div class="horizontal-container">
     <!-- Left Panel: Design Tokens -->
     <aside class="panel left-panel">
@@ -399,7 +401,9 @@
             selectedItems.clear();
             selectedItems.add(nodeId);
             /* safari closes dialog whenever cursor is out of button */
-            document.getElementById("app-node-editor")?.showPopover();
+            appElement
+              ?.querySelector<HTMLElement>("#app-node-editor")
+              ?.showPopover();
           }}
         >
           <Settings size={16} />
@@ -450,7 +454,7 @@
         {/if}
       {/snippet}
 
-      <div class="tokens-container">
+      <div class="tokens-panel">
         <TreeView
           id="tokens-tree"
           label="Design Tokens"
@@ -503,6 +507,7 @@
 <style>
   .app {
     container-type: inline-size;
+    anchor-name: --app;
     width: 100%;
     height: 100%;
     display: grid;
@@ -551,7 +556,8 @@
     margin-left: auto;
   }
 
-  .tokens-container {
+  .tokens-panel {
+    anchor-name: --tokens-panel;
     overflow: auto;
   }
 

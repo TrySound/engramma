@@ -4,7 +4,6 @@
   import "prismjs/components/prism-css";
   import "prismjs/components/prism-css";
   import "prismjs/components/prism-scss";
-  import "prismjs/themes/prism-tomorrow.min.css";
   import type { HTMLAttributes } from "svelte/elements";
   import CopyButton from "./copy-button.svelte";
 

@@ -1,0 +1,47 @@
+<!doctype html>
+<script type="module" src="./dist/engramma.mjs"></script>
+<body>
+  <style>
+    :root {
+      --bg-color: #eee;
+      --text-color: #666;
+      --font: Inter, sans-serif;
+      --btn-radius: 4px;
+      --btn-bg: #ddd;
+      --btn-bg-hover: #ccc;
+      font-family: var(--font);
+      height: stretch;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    body {
+      height: stretch;
+      margin: 0;
+      padding: 40px;
+    }
+    button {
+      color: inherit;
+      border: 2px solid;
+      padding: 10px 20px;
+      border-radius: var(--btn-radius);
+      transition: 150ms;
+      background-color: var(--btn-bg);
+      &:hover {
+        background-color: var(--btn-bg-hover);
+      }
+    }
+    dialog {
+      width: 70dvw;
+      height: 80dvh;
+      padding: 0;
+      border: 0;
+    }
+  </style>
+  <h1>Engramma Web Component Example</h1>
+  <button commandfor="design-tokens" command="show-modal">
+    Edit design tokens
+  </button>
+  <dialog id="design-tokens" closedby="any">
+    <engramma-app></engramma-app>
+  </dialog>
+</body>

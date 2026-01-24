@@ -1,4 +1,5 @@
-:root {
+:root,
+:host {
   /* https://modernfontstacks.com */
   --typography-geometric-humanist:
     Avenir, Montserrat, Corbel, "URW Gothic", source-sans-pro, sans-serif;
@@ -23,14 +24,17 @@
 
   font-family: var(--typography-geometric-humanist);
   accent-color: var(--bg-secondary);
+  /* host adds background to horizontal scroll when embed as web component */
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 /* reduce show delay when another tooltip is shown already */
-:root:has([interestfor]:has-interest) [interestfor] {
+:where(:root, :host):has([interestfor]:has-interest) [interestfor] {
   interest-show-delay: 100ms;
 }
 
-:root:has([interestfor].has-interest) [interestfor] {
+:where(:root, :host):has([interestfor].has-interest) [interestfor] {
   --interest-show-delay: 100ms;
 }
 
@@ -42,8 +46,6 @@
 
 body {
   margin: 0;
-  background: var(--bg-primary);
-  color: var(--text-primary);
   height: 100dvh;
   overflow: hidden;
 }

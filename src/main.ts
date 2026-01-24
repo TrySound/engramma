@@ -1,5 +1,6 @@
 import { generateKeyBetween } from "fractional-indexing";
 import { mount } from "svelte";
+import "prismjs/themes/prism-tomorrow.min.css";
 import App from "./app.svelte";
 import "./app.css";
 import { parseDesignTokens } from "./tokens";

@@ -336,6 +336,10 @@ export class TreeState<Meta> {
   #subscribe = createSubscriber((update) => this.#store.subscribe(update));
   #syncToUrl: boolean = false;
 
+  get store() {
+    return this.#store;
+  }
+
   transact(callback: (tx: Transaction<Meta>) => void): void {
     this.#store.transact(callback);
     // Sync to URL after transaction completes
