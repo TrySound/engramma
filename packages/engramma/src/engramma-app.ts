@@ -17,22 +17,28 @@ import prismStyles from "prismjs/themes/prism-tomorrow.min.css?raw";
 
 const extractUserCssVariables = () => {
   let css = ``;
-  const root = document.documentElement;
-  if (root.computedStyleMap) {
-    for (const [property, cssValue] of root.computedStyleMap()) {
-      if (property.startsWith("--")) {
-        for (const value of cssValue) {
-          css += `${property}: ${value.toString()};\n`;
-        }
-      }
+
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try {
+      rules = sheet.cssRules; // throws for cross-origin sheets
+    } catch {
+      continue;
     }
-  } else {
-    // fallback to fully computed styles (aliases won't be inferred)
-    const computedStyles = getComputedStyle(root);
-    for (const property of computedStyles) {
-      if (property.startsWith("--")) {
-        const value = computedStyles.getPropertyValue(property);
-        css += `${property}: ${value};\n`;
+
+    for (const rule of rules) {
+      if (rule instanceof CSSStyleRule) {
+        // find selectors like ":root, html"
+        const parts = rule.selectorText.split(",").map((s) => s.trim());
+        if (!parts.some((part) => part === ":root" || part === "html")) {
+          continue;
+        }
+        for (const property of rule.style) {
+          if (property.startsWith("--")) {
+            const value = rule.style.getPropertyValue(property);
+            css += `${property}: ${value};\n`;
+          }
+        }
       }
     }
   }
