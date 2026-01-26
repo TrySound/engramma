@@ -61,6 +61,9 @@ Add the web component to any HTML page using a dialog to avoid affecting your pa
         border: 0;
         box-shadow: 0 0 10px rgb(0 0 0 / 30%);
       }
+      #engramma-dialog::backdrop {
+        display: none;
+      }
     </style>
   </head>
   <body>
