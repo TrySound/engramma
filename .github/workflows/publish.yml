@@ -28,6 +28,6 @@ jobs:
           cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
-      - run: pnpm build
+      - run: pnpm --filter engramma check
+      - run: pnpm --filter engramma build
       - run: pnpm --filter engramma publish --no-git-checks
