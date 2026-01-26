@@ -24,9 +24,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          npm-version: "11.8.0"
           cache: "pnpm"
 
+      - run: npm install -g npm@11.8.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm build

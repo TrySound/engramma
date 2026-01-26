@@ -12,7 +12,6 @@
   "exports": "./dist/engramma.js",
   "scripts": {
     "build": "vite build",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
-    "prepublishOnly": "pnpm check && pnpm build"
+    "check": "svelte-check --tsconfig ./tsconfig.json"
   }
 }
