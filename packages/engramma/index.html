@@ -1,5 +1,5 @@
 <!doctype html>
-<script type="module" src="./dist/engramma.mjs"></script>
+<script type="module" src="./dist/engramma.js"></script>
 <body>
   <style>
     :root {
@@ -30,18 +30,25 @@
         background-color: var(--btn-bg-hover);
       }
     }
-    dialog {
-      width: 70dvw;
-      height: 80dvh;
-      padding: 0;
-      border: 0;
-    }
   </style>
   <h1>Engramma Web Component Example</h1>
-  <button commandfor="design-tokens" command="show-modal">
+  <button commandfor="engramma-dialog" command="show-modal">
     Edit design tokens
   </button>
-  <dialog id="design-tokens" closedby="any">
+  <style>
+    #engramma-dialog:modal {
+      top: 8px;
+      right: 8px;
+      bottom: auto;
+      left: auto;
+      width: 30dvw;
+      height: calc(100dvh - 16px);
+      padding: 0;
+      border: 0;
+      box-shadow: 0 0 10px rgb(0 0 0 / 30%);
+    }
+  </style>
+  <dialog id="engramma-dialog" closedby="any">
     <engramma-app></engramma-app>
   </dialog>
 </body>

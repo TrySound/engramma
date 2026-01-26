@@ -1120,6 +1120,7 @@
     @container (width <= 720px) {
       inset: 8px;
       width: auto;
+      max-width: 700px;
       max-height: none;
     }
 
@@ -1131,6 +1132,7 @@
       right: auto;
 
       @container (width <= 720px) {
+        max-width: none;
         position-anchor: --app;
         top: calc(anchor(top) + 8px);
         left: calc(anchor(left) + 8px);

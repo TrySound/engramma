@@ -58,6 +58,56 @@ Menu → **Export tokens**:
 
 If you use aliases, the exporters keep them as references/`var()` where possible instead of flattening everything.
 
+## Web Component
+
+Engramma is available as an embeddable web component for developers to preview and edit CSS variables with a design tokens editor directly on their page.
+
+### Quick start
+
+Add this to your HTML:
+
+```html
+<script
+  type="module"
+  src="https://unpkg.com/engramma@latest/dist/engramma.js"
+></script>
+
+<button commandfor="engramma-dialog" command="show-modal">
+  Edit design tokens
+</button>
+
+<style>
+  #engramma-dialog:modal {
+    top: 8px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: 30dvw;
+    height: calc(100dvh - 16px);
+    padding: 0;
+    border: 0;
+    box-shadow: 0 0 10px rgb(0 0 0 / 30%);
+  }
+</style>
+<dialog id="engramma-dialog" closedby="any">
+  <engramma-app></engramma-app>
+</dialog>
+```
+
+The component automatically detects all CSS variables on your page and allows you to edit them in real-time.
+
+### How it works
+
+The component extracts CSS custom properties from your html element (:root selector) and converts them into design tokens (colors, dimensions, typography, etc.). When you edit tokens in the editor, changes are immediately written back to CSS variables, updating your page styles instantly.
+
+This makes it easy to:
+
+- **Preview** your design system variables in context
+- **Experiment** with changes before committing them
+- **Extract** a structured token system from existing CSS variables
+
+For deeper integration details, see [packages/engramma](./packages/engramma/README.md).
+
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).

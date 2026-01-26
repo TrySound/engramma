@@ -1,13 +1,18 @@
 {
   "name": "engramma",
   "version": "0.1.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Web component to add Engramma on your website",
+  "keywords": [],
+  "author": "Bogdan Chadkin <opensource@trysound.io>",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": "./dist/engramma.js",
   "scripts": {
     "build": "vite build",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "MIT"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "prepublishOnly": "pnpm check && pnpm build"
+  }
 }
