@@ -36,4 +36,4 @@
 
 ## Node Version
 
-Requires Node 22 (configured in package.json engines).
+Requires Node 24 (configured in package.json engines).
