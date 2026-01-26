@@ -5,6 +5,9 @@
   "keywords": [],
   "author": "Bogdan Chadkin <opensource@trysound.io>",
   "license": "MIT",
+  "repository": {
+    "url": "https://github.com/TrySound/engramma"
+  },
   "type": "module",
   "files": [
     "dist"
