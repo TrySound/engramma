@@ -1,6 +1,6 @@
 {
   "packageManager": "pnpm@10.20.0",
-  "name": "engramma",
+  "name": "engramma-root",
   "author": "Bogdan Chadkin",
   "license": "MIT",
   "type": "module",
