@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "packages/engramma/package.json"
 
 permissions:
   contents: read
