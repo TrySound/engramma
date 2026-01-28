@@ -359,8 +359,17 @@ const parseColorToken = (value: string): undefined | Token => {
   }
 };
 
-const parseDimensionValue = (value: string): undefined | DimensionValue => {
-  const match = value.match(/^([\d.-]+)(px|rem)$/);
+const parseDimensionValue = (
+  value: string,
+  unitlessZero?: boolean,
+): undefined | DimensionValue => {
+  if (unitlessZero && value === "0") {
+    return {
+      value: 0,
+      unit: "px",
+    };
+  }
+  let match = value.match(/^([\d.-]+)(px|rem)$/);
   if (!match) {
     return;
   }
@@ -456,7 +465,7 @@ const parseShadowItem = (value: string): undefined | ShadowObject => {
     .filter((item) => item !== undefined)
     .at(0);
   const dimensions = parts
-    .map(parseDimensionValue)
+    .map((item) => parseDimensionValue(item, true))
     .filter((item) => item !== undefined);
   const offsetX = dimensions.at(0);
   const offsetY = dimensions.at(1);
@@ -520,7 +529,7 @@ const parseBorderToken = (value: string): undefined | Token => {
   const aliases = parts
     .map(parseAliasValue)
     .filter((item) => item !== undefined);
-  const width = parts.map(parseDimensionValue).at(0);
+  const width = parts.map((item) => parseDimensionValue(item, true)).at(0);
   const color = parts.map(parseColorValue).at(0);
   return {
     $type: "border",

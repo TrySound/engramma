@@ -807,6 +807,13 @@ describe("parseCssVariables", () => {
     });
   });
 
+  test("parses shadow with unitless zeros", () => {
+    const result = parseCssVariables(
+      "--shadow: inset 0 0 0 1px hsl(220 3% 15% / 10%);",
+    );
+    expect(result.shadow?.$value).toHaveProperty("inset", true);
+  });
+
   test("parses inset shadow", () => {
     const result = parseCssVariables(
       "--shadow: inset 0px 2px 4px 0px rgba(0, 0, 0, 0.1);",
