@@ -37,6 +37,7 @@
     renderItem,
     canAcceptChildren,
     onMove,
+    onRenameItem,
   }: {
     id: string;
     label: string;
@@ -55,6 +56,8 @@
       parentId: undefined | string,
       position: number,
     ) => void;
+    // rename specific
+    onRenameItem?: (itemId: string, newName: string) => void;
   } = $props();
 
   // based on https://www.w3.org/WAI/ARIA/apg/patterns/treeview/
@@ -64,6 +67,10 @@
   // svelte-ignore state_referenced_locally
   let activeItemId = $state(Array.from(selectedItems).at(0));
   let treeElement: undefined | HTMLElement;
+
+  // rename state
+  let editingItemId = $state<string | undefined>(undefined);
+  let editingName = $state("");
 
   // reset active item when deleted
   $effect(() => {
@@ -116,10 +123,48 @@
     return visibleItems;
   };
 
+  const startRename = (itemId: string) => {
+    if (!onRenameItem) {
+      return;
+    }
+    const element = treeElement?.querySelector(`#${getItemElementId(itemId)}`);
+    const currentName = element?.getAttribute("data-name");
+    if (currentName) {
+      editingName = currentName;
+      editingItemId = itemId;
+    }
+    requestAnimationFrame(() => {
+      element?.querySelector("input")?.focus();
+    });
+  };
+
+  const commitRename = () => {
+    if (editingItemId && editingName.trim() && onRenameItem) {
+      const trimmedName = editingName.trim();
+      const element = treeElement?.querySelector(
+        `#${getItemElementId(editingItemId)}`,
+      );
+      const currentName = element?.getAttribute("data-name");
+      if (currentName && trimmedName !== currentName) {
+        onRenameItem(editingItemId, trimmedName);
+      }
+    }
+    editingItemId = undefined;
+    editingName = "";
+    treeElement?.focus();
+  };
+
+  const cancelRename = () => {
+    editingItemId = undefined;
+    editingName = "";
+    treeElement?.focus();
+  };
+
   const handleKeyDown = (event: KeyboardEvent) => {
     if (!treeElement) {
       return;
     }
+
     const activeItemElement = activeItemId
       ? treeElement.querySelector(`#${getItemElementId(activeItemId)}`)
       : treeElement.querySelector("[role=treeitem]");
@@ -236,6 +281,12 @@
           selectedItems.add(itemId);
         }
       }
+    }
+
+    // Enter starts inline rename when onRenameItem is provided
+    if (event.key === "Enter" && onRenameItem && activeItemId) {
+      event.preventDefault();
+      startRename(activeItemId);
     }
   };
 
@@ -431,6 +482,7 @@
 
 {#snippet item(itemData: TreeItem, level: number, position: number)}
   {@const { id, name, children } = itemData}
+  {@const isEditing = editingItemId === id}
   <div
     id={getItemElementId(id)}
     role="treeitem"
@@ -441,6 +493,7 @@
     data-dragging={dragState.items?.includes(id) && dragState.type !== "idle"}
     data-hovered={hoveredItemId === id}
     data-position={position}
+    data-name={name}
   >
     <div
       class="node"
@@ -454,12 +507,30 @@
         aria-label={name}
         tabindex="-1"
         onclick={selectItem}
+        ondblclick={() => startRename(id)}
       ></button>
       <button class="a-small-button toggle" tabindex="-1" onclick={toggleItem}>
         <ChevronDown size={16} />
       </button>
       <div class="item">
-        {#if renderItem}
+        {#if isEditing}
+          <input
+            type="text"
+            class="rename-input"
+            bind:value={editingName}
+            onkeydown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitRename();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                cancelRename();
+              }
+            }}
+            onblur={commitRename}
+          />
+        {:else if renderItem}
           {@render renderItem(itemData)}
         {:else}
           <div class="name">{name}</div>
@@ -602,6 +673,26 @@
   .name {
     font-size: 14px;
     padding: 4px 0;
+  }
+
+  .rename-input {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+    min-width: 0;
+    pointer-events: auto;
+    field-sizing: content;
+  }
+
+  .rename-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-hover);
   }
 
   .drop-indicator {

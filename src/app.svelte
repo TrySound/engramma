@@ -193,7 +193,9 @@
       return;
     }
     const closestTree = event.target.closest("[role=tree]");
-    if (event.key === "Enter" && closestTree) {
+    // Space opens editor dialog
+    if (event.key === " " && closestTree) {
+      event.preventDefault();
       appElement?.querySelector<HTMLElement>("#app-node-editor")?.showPopover();
     }
     if (event.key === "Backspace" && closestTree) {
@@ -462,6 +464,17 @@
           {selectedItems}
           {defaultExpandedItems}
           renderItem={renderTreeItem}
+          onRenameItem={(itemId, newName) => {
+            const node = treeState.getNode(itemId);
+            if (node && newName !== node.meta.name) {
+              treeState.transact((tx) => {
+                tx.set({
+                  ...node,
+                  meta: { ...node.meta, name: newName },
+                });
+              });
+            }
+          }}
           canAcceptChildren={(targetId, items) => {
             // only set can be dropped into root
             if (!targetId) {
