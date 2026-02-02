@@ -55,6 +55,7 @@
   } from "./state.svelte";
   import { serializeColor } from "./color";
   import type { Value } from "./schema";
+  import NewProject from "./new-project.svelte";
 
   let appElement: undefined | HTMLDivElement;
   const zeroIndex = generateKeyBetween(null, null);
@@ -84,7 +85,8 @@
   };
 
   const treeData = $derived(rootNodes.map(buildTreeItem));
-  const defaultExpandedItems = $derived(
+  const expandedItems = new SvelteSet(
+    // svelte-ignore state_referenced_locally
     rootNodes.length ? [rootNodes[0].nodeId] : [],
   );
 
@@ -308,6 +310,16 @@
   };
 </script>
 
+<NewProject
+  onCreate={() => {
+    const [firstRoot] = treeState.getChildren(undefined);
+    expandedItems.clear();
+    expandedItems.add(firstRoot.nodeId);
+    selectedItems.clear();
+    selectedItems.add(firstRoot.nodeId);
+  }}
+/>
+
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="app"
@@ -462,7 +474,7 @@
           label="Design Tokens"
           data={treeData}
           {selectedItems}
-          {defaultExpandedItems}
+          {expandedItems}
           renderItem={renderTreeItem}
           onRenameItem={(itemId, newName) => {
             const node = treeState.getNode(itemId);

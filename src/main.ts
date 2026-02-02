@@ -5,14 +5,13 @@ import App from "./app.svelte";
 import "./app.css";
 import { parseDesignTokens } from "./tokens";
 import { treeState, type SetMeta } from "./state.svelte";
-import designTokens from "./design-tokens-example.tokens.json";
 import { getDataFromUrl } from "./url-data";
 import type { TreeNode } from "./store";
 import { isResolverFormat, parseTokenResolver } from "./resolver";
 
 // Get design tokens from URL or use example
 const urlData = await getDataFromUrl();
-const tokensData = urlData ?? designTokens;
+const tokensData = urlData;
 
 // Parse design tokens and populate state
 let parsedResult: undefined | ReturnType<typeof parseTokenResolver>;

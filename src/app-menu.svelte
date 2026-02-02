@@ -1,6 +1,5 @@
 <script lang="ts">
   import { Menu, X } from "@lucide/svelte";
-  import NewProject from "./new-project.svelte";
   import ExportDialog from "./export-dialog.svelte";
 
   const shareUrl = () => {
@@ -63,8 +62,6 @@
     About
   </button>
 </div>
-
-<NewProject />
 
 <ExportDialog />
 
