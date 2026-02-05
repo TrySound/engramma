@@ -1,14 +1,19 @@
 import { generateKeyBetween } from "fractional-indexing";
 import { mount } from "svelte";
 import "prismjs/themes/prism-tomorrow.min.css";
-import App from "./app.svelte";
 import "./app.css";
+import App from "./app.svelte";
 import { parseDesignTokens } from "./tokens";
+import {
+  isResolverFormat,
+  parseTokenResolver,
+  serializeTokenResolver,
+} from "./resolver";
+import { setDataInUrl, getDataFromUrl } from "./url-data";
 import { treeState, type SetMeta } from "./state.svelte";
-import { getDataFromUrl } from "./url-data";
 import type { TreeNode } from "./store";
-import { isResolverFormat, parseTokenResolver } from "./resolver";
 import type { Preset } from "./new-project.svelte";
+import type { TreeNodeMeta } from "./state.svelte";
 
 const presets: Preset[] = [
   {
@@ -96,7 +101,21 @@ if (parsedResult.errors.length > 0) {
 
 console.info(`Loaded design tokens: ${parsedResult.nodes.length} nodes`);
 
-// Enable URL sync after initial load
-treeState.enableUrlSync();
+// Set up debounced URL sync after initial load
+const URL_SYNC_DEBOUNCE_MS = 300;
+let urlUpdateTimeout: ReturnType<typeof setTimeout> | undefined;
+
+treeState.subscribe(() => {
+  if (urlUpdateTimeout) {
+    clearTimeout(urlUpdateTimeout);
+  }
+  urlUpdateTimeout = setTimeout(() => {
+    const allNodes = treeState.nodes() as Map<string, TreeNode<TreeNodeMeta>>;
+    const serialized = serializeTokenResolver(allNodes);
+    setDataInUrl(serialized).catch((error: unknown) => {
+      console.error("Failed to sync design tokens to URL:", error);
+    });
+  }, URL_SYNC_DEBOUNCE_MS);
+});
 
 mount(App, { target: document.body, props: { presets } });

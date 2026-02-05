@@ -9,8 +9,6 @@ import {
   RawValueSchema,
   isNodeRef,
 } from "./schema";
-import { setDataInUrl } from "./url-data";
-import { serializeTokenResolver } from "./resolver";
 
 export type SetMeta = {
   nodeType: "token-set";
@@ -334,7 +332,6 @@ export type TreeNodeMeta = GroupMeta | TokenMeta | SetMeta;
 export class TreeState<Meta> {
   #store = new TreeStore<Meta>();
   #subscribe = createSubscriber((update) => this.#store.subscribe(update));
-  #syncToUrl: boolean = false;
 
   get store() {
     return this.#store;
@@ -342,22 +339,10 @@ export class TreeState<Meta> {
 
   transact(callback: (tx: Transaction<Meta>) => void): void {
     this.#store.transact(callback);
-    // Sync to URL after transaction completes
-    if (this.#syncToUrl) {
-      this.#updateUrl();
-    }
   }
 
-  enableUrlSync(): void {
-    this.#syncToUrl = true;
-  }
-
-  #updateUrl(): void {
-    const allNodes = this.#store.nodes() as Map<string, TreeNode<TreeNodeMeta>>;
-    const serialized = serializeTokenResolver(allNodes);
-    setDataInUrl(serialized).catch((error) => {
-      console.error("Failed to sync design tokens to URL:", error);
-    });
+  subscribe(callback: () => void): () => void {
+    return this.#store.subscribe(callback);
   }
 
   values(): TreeNode<Meta>[] {
