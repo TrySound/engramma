@@ -55,7 +55,9 @@
   } from "./state.svelte";
   import { serializeColor } from "./color";
   import type { Value } from "./schema";
-  import NewProject from "./new-project.svelte";
+  import NewProject, { type Preset } from "./new-project.svelte";
+
+  const { presets = [] }: { presets?: Preset[] } = $props();
 
   let appElement: undefined | HTMLDivElement;
   const zeroIndex = generateKeyBetween(null, null);
@@ -311,6 +313,7 @@
 </script>
 
 <NewProject
+  {presets}
   onCreate={() => {
     const [firstRoot] = treeState.getChildren(undefined);
     expandedItems.clear();

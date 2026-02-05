@@ -1,3 +1,13 @@
+<script module lang="ts">
+  export type ImportSource = { name: string; content: string };
+
+  export type Preset = {
+    name: string;
+    description: string;
+    load: () => Promise<ImportSource>;
+  };
+</script>
+
 <script lang="ts">
   import { generateKeyBetween } from "fractional-indexing";
   import { treeState, type SetMeta, type TreeNodeMeta } from "./state.svelte";
@@ -11,9 +21,8 @@
   import type { TreeNode } from "./store";
   import type { Attachment } from "svelte/attachments";
 
-  const { onCreate }: { onCreate?: () => void } = $props();
-
-  type ImportSource = { name: string; content: string };
+  const { onCreate, presets }: { onCreate?: () => void; presets: Preset[] } =
+    $props();
 
   type ImportType = "unknown" | "json" | "css" | "resolver";
 
@@ -31,51 +40,15 @@
   };
 
   let dialogElement: undefined | HTMLDialogElement;
-  let fileInputElement: undefined | HTMLInputElement = $state();
   let dropzoneElement: undefined | HTMLElement = $state();
-  let inputMode = $state<"preset" | "upload" | "text">("preset");
+  // svelte-ignore state_referenced_locally
+  let inputMode = $state<"preset" | "upload" | "text">(
+    presets.length ? "preset" : "upload",
+  );
   let isDragOver = $state(false);
   let isInputTouched = $state(false);
   let importResults: ImportResult[] = $state([]);
   let content = $state("");
-
-  $effect(() => {
-    console.log(inputMode);
-  });
-
-  const presets: Preset[] = [
-    {
-      name: "Open Props",
-      description:
-        "Popular CSS custom properties library with colors, sizes, shadows, and more",
-      load: async () => {
-        const resolver = await import("open-props/resolver");
-        return {
-          name: "Open Props",
-          content: JSON.stringify(resolver.default),
-        };
-      },
-    },
-    {
-      name: "Test Tokens",
-      description:
-        "Example design tokens in DTCG format with colors, spacing, typography",
-      load: async () => {
-        const { default: tokens } =
-          await import("./design-tokens-example.tokens.json");
-        return { name: "Example Tokens", content: JSON.stringify(tokens) };
-      },
-    },
-    {
-      name: "Test Resolver",
-      description: "Example resolver format with sets and modifiers",
-      load: async () => {
-        const { default: resolver } =
-          await import("./design-tokens-example.resolver.json");
-        return { name: "Example Resolver", content: JSON.stringify(resolver) };
-      },
-    },
-  ];
 
   const convertImportSources = (sources: ImportSource[]) => {
     const results: ImportResult[] = [];
@@ -391,7 +364,6 @@
             </div>
           </label>
           <input
-            bind:this={fileInputElement}
             id="new-project-file"
             class="file-input"
             aria-label="Select tokens file"

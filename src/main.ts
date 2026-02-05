@@ -8,6 +8,41 @@ import { treeState, type SetMeta } from "./state.svelte";
 import { getDataFromUrl } from "./url-data";
 import type { TreeNode } from "./store";
 import { isResolverFormat, parseTokenResolver } from "./resolver";
+import type { Preset } from "./new-project.svelte";
+
+const presets: Preset[] = [
+  {
+    name: "Open Props",
+    description:
+      "Popular CSS custom properties library with colors, sizes, shadows, and more",
+    load: async () => {
+      const resolver = await import("open-props/resolver");
+      return {
+        name: "Open Props",
+        content: JSON.stringify(resolver.default),
+      };
+    },
+  },
+  {
+    name: "Test Tokens",
+    description:
+      "Example design tokens in DTCG format with colors, spacing, typography",
+    load: async () => {
+      const { default: tokens } =
+        await import("./design-tokens-example.tokens.json");
+      return { name: "Example Tokens", content: JSON.stringify(tokens) };
+    },
+  },
+  {
+    name: "Test Resolver",
+    description: "Example resolver format with sets and modifiers",
+    load: async () => {
+      const { default: resolver } =
+        await import("./design-tokens-example.resolver.json");
+      return { name: "Example Resolver", content: JSON.stringify(resolver) };
+    },
+  },
+];
 
 // Get design tokens from URL or use example
 const urlData = await getDataFromUrl();
@@ -64,4 +99,4 @@ console.info(`Loaded design tokens: ${parsedResult.nodes.length} nodes`);
 // Enable URL sync after initial load
 treeState.enableUrlSync();
 
-mount(App, { target: document.body });
+mount(App, { target: document.body, props: { presets } });
