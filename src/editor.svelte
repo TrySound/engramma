@@ -1,9 +1,11 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { titleCase } from "title-case";
   import { noCase } from "change-case";
   import type { HTMLAttributes } from "svelte/elements";
   import type { SvelteSet } from "svelte/reactivity";
   import { Plus, X } from "@lucide/svelte";
+  import type { ChangeDetail } from "hdr-color-input";
   import {
     treeState,
     resolveTokenValue,
@@ -25,7 +27,6 @@
   import GradientEditor from "./gradient-editor.svelte";
   import AliasToken from "./alias-token.svelte";
   import type { TreeNode } from "./store";
-  import type { Snippet } from "svelte";
 
   let {
     id,
@@ -523,19 +524,15 @@
       {/if}
 
       {#if rawValue?.type === "color"}
+        <!-- Store in separate derived to cache and avoid infinite cycle -->
+        {@const colorValue = serializeColor(rawValue.value)}
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="a-label">Color</label>
           <color-input
-            value={serializeColor(rawValue.value)}
-            onopen={(event: InputEvent) => {
-              // track both open and close because of bug in css-color-component
-              const input = event.target as HTMLInputElement;
-              updateMeta({ value: parseColor(input.value) });
-            }}
-            onclose={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              updateMeta({ value: parseColor(input.value) });
+            value={colorValue}
+            onchange={(event: CustomEvent<ChangeDetail>) => {
+              updateMeta({ value: parseColor(event.detail.value) });
             }}
           ></color-input>
         </div>

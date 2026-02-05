@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Plus, X } from "@lucide/svelte";
+  import type { ChangeDetail } from "hdr-color-input";
   import { parseColor, serializeColor } from "./color";
   import type { GradientValue, RawGradientValue } from "./schema";
   import AliasToken from "./alias-token.svelte";
@@ -71,17 +72,14 @@
   <div class="gradient-stops-list">
     {#each value as stop, index (index)}
       {@const rawStop = rawValue[index]}
+      <!-- Store in separate derived to cache and avoid infinite cycle -->
+      {@const colorValue = serializeColor(stop.color)}
       <div class="gradient-stop-row">
         <div class="color-with-alias">
           <color-input
-            value={serializeColor(stop.color)}
-            onopen={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              updateItem(index, { color: parseColor(input.value) });
-            }}
-            onclose={(event: InputEvent) => {
-              const input = event.target as HTMLInputElement;
-              updateItem(index, { color: parseColor(input.value) });
+            value={colorValue}
+            onchange={(event: CustomEvent<ChangeDetail>) => {
+              updateItem(index, { color: parseColor(event.detail.value) });
             }}
           ></color-input>
           <AliasToken
